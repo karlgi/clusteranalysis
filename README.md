@@ -11,9 +11,6 @@ To further explore the phenotypic spectrum of AAV, we here perform an unbiased d
 |      **Name**              | id       | age     | creatinine | crp     | gender  | constitutional | musculoskeletal | cutaneous | eye     | mucosa   | ent     | chest   | cardio  | abdominal | kidney | cns     | pns     | anca    | followuptime | dateofdiagnosis | dateoffollowup | death | dateofdeath | eskd | dateofeskd | maindiagnosis | registry |
 |:-------------|:--------:|:-------:|:----------:|:-------:|:-------:|:--------------:|:---------------:|:---------:|:-------:|:--------:|:-------:|:-------:|:-------:|:---------:|:------:|:-------:|:-------:|:-------:|:------------:|:---------------:|:--------------:|:-----:|:-----------:|:----:|:----------:|:-------------:|:--------:|
 | **Class**    | string   | numeric   | numeric   | numeric| string   | numeric        | numeric            | numeric      | numeric     | numeric          |numeric         | numeric        |numeric        |numeric           |numeric      | numeric         |numeric         | string   | numeric         | date    | date   | logical    | date            | logical     | date      | string   | string    |
-
-id	age	creatinine	crp	gender	constitutional	musculoskeletal	cutaneous	eye	mucosa	ent	chest	cardio	abdominal	kidney	cns	pns	anca	followuptime	dateofdiagnosis	dateoffollowup	death	dateofdeath	eskd	dateofeskd	maindiagnosis	registry<img width="1450" alt="image" src="https://github.com/karlgi/clusteranalysis/assets/76054859/f7a666cb-8e61-4398-a911-44dc11e67353">
-
    
 3. Imputation of data: full_matrix_generation.rmd
 Here all registry_prepared.csv are imported. Rows containing more than 50% missing values are removed. The rows are shuffled. Variables are selected and data missingness is explored. Data is imputed to generate 10 complete sets. This data is saved in imputed_data.rda. 
