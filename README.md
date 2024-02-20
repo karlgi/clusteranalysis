@@ -9,7 +9,7 @@ To further explore the phenotypic spectrum of AAV, we here perform an unbiased d
 1. To start: registry_prepared.csv are files where registry is the registry name (czech, fvsg, gevas, polvas, rkd, skane). This is the structure of these files:
 
 | Name | id    | age    | creatinine| crp    | gender| constitutional| musculoskeletal| cutaneous| eye    | mucosa | ent    | chest  | cardio | abdominal| kidney | cns    | pns    | anca    | followutime | dateofdiagnosis | dateoffollowup | death | dateofdeath | eskd | dateofeskd | maindiagnosis | registry |
-| :---:| :----:| :-----:| :--------:| :-----:| :----:|:-------------:|:--------------:|:--------:|:------:|:------:|:------:|:------:|:------:|:--------:|:------:|:------:|:------:|:------:|:------:|:------:|:------:|:------:|:------:|:------:|:------:|:------:|
+| :---:| :----:| :-----:| :--------:| :-----:| :----:|:-------------:|:--------------:|:--------:|:------:|:------:|:------:|:------:|:------:|:--------:|:------:|:------:|:------:|:------:|:------:|:------:|:------:|:------:|:------:|:------:|:------:|:------:|:------:|:------:|
 | Class| string| numeric| numeric   | numeric| string| numeric       | numeric        | numeric  | numeric| numeric| numeric| numeric| numeric| numeric  | numeric| numeric| numeric| nominal
 | numeric | date | data | logical | date | logical | date | string | string |
 
