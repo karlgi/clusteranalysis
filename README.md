@@ -7,12 +7,11 @@ To further explore the phenotypic spectrum of AAV, we here perform an unbiased d
 
 ### Workflow: 
 1. To start: registry_prepared.csv are files where registry is the registry name (czech, fvsg, gevas, polvas, rkd, skane). This is the structure of these files:
-
-| Name | id    | age    | creatinine| crp    | gender| constitutional| musculoskeletal| cutaneous| eye    | mucosa | ent    | chest  | cardio | abdominal| kidney | cns    | pns    | anca    | followutime | dateofdiagnosis | dateoffollowup | death | dateofdeath | eskd | dateofeskd | maindiagnosis | registry |
-|:---:| :---:  | :---:  | :---:| :---:   | :---:| :---:| :---:| cutaneous|:---:  | :---:|:---:| :---: | :---:| :---:| :---:| :---:| :---:    |:---:   | :---:| :---: | :---: | :---: | :---: | eskd | :---: | :---: | :---:|
-| Class| string| numeric| numeric   | numeric| string| numeric       | numeric        | numeric  | numeric| numeric| numeric| numeric| numeric| numeric  | numeric| numeric| numeric| nominal
-| numeric | date | data | logical | date | logical | date | string | string |
-
+   
+| Name           | id       | age     | creatinine | crp     | gender  | constitutional | musculoskeletal | cutaneous | eye     | mucosa   | ent     | chest   | cardio  | abdominal | kidney | cns     | pns     | anca    | followuptime | dateofdiagnosis | dateoffollowup | death | dateofdeath | eskd | dateofeskd | maindiagnosis | registry |
+|:--------------:|:--------:|:-------:|:----------:|:-------:|:-------:|:--------------:|:---------------:|:---------:|:-------:|:--------:|:-------:|:-------:|:-------:|:---------:|:------:|:-------:|:-------:|:-------:|:------------:|:---------------:|:--------------:|:-----:|:-----------:|:----:|:----------:|:-------------:|:--------:|
+| Class          | string   | numeric | numeric    | numeric | string  | numeric        | numeric         | numeric   | numeric | numeric  | numeric | numeric | numeric | numeric   | numeric| numeric | numeric | nominal |
+| numeric        | date     | data    | logical    | date    | logical | date           | string          | string    | string  | -        | -       | -       | -       | -         | -      | -       | -       | -       | -            | date            | date           | logical| date        | logical       | -        |
 
 
 id	age	creatinine	crp	gender	constitutional	musculoskeletal	cutaneous	eye	mucosa	ent	chest	cardio	abdominal	kidney	cns	pns	anca	followuptime	dateofdiagnosis	dateoffollowup	death	dateofdeath	eskd	dateofeskd	maindiagnosis	registry<img width="1450" alt="image" src="https://github.com/karlgi/clusteranalysis/assets/76054859/f7a666cb-8e61-4398-a911-44dc11e67353">
