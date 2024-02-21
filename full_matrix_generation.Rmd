@@ -1,0 +1,330 @@
+---
+title: "Cluster analysis - workflow: 1. Missingness and imputation"
+author: "Karl Gisslander"
+date: "2024-02-21"
+output: html_document
+---
+
+### Import and list relevant libraries
+```{r echo=FALSE}
+library(tidyverse)
+library(naniar)
+library(lubridate)
+library(mice)
+library(ggmice)
+```
+
+### Set up working directory and import data
+```{r}
+czech <- read.csv("Czech/czech_prepared.csv")
+fvsg <- read.csv("FVSG/fvsg_prepared.csv")
+gevas <- read.csv("Gevas/gevas_prepared.csv")
+polvas <- read.csv("Polvas/polvas_prepared.csv")
+rkd <- read.csv("RKD/rkd_prepared.csv")
+skane <- read.csv("Skåne/skane_prepared.csv")
+
+```
+
+### Merge all dataframes to one.
+```{r}
+data <- rbind(czech, fvsg, gevas, polvas, rkd, skane)
+```
+
+### Create a matrix with the variables we need for the imputation. We set variables in correct class and fix it to fit clustMD later.
+```{r}
+# dplyr::select the variables of interest
+matrix <- data %>%
+  dplyr::select(id, age, creatinine, crp, gender, constitutional, musculoskeletal, cutaneous, eye, mucosa,
+           ent, chest, cardio, abdominal, kidney, cns, pns, anca, dateofdiagnosis, death, dateofdeath, eskd, dateofeskd, dateoffollowup, maindiagnosis, registry)
+
+# We set up some time to event information. I think it's best if we write this as time of follow up and use the death = TRUE/FALSE and eskd = TRUE/FALSE as censoring. 
+matrix <- matrix %>%
+  mutate(timeoffollowup = as.numeric(floor(time_length(difftime(dateoffollowup, dateofdiagnosis), "days"))))
+
+matrix <- matrix %>%
+  mutate(dateoffollowup_eskd = case_when(!is.na(dateofeskd) ~ dateofeskd,
+                                          .default = dateoffollowup))
+
+matrix <- matrix %>%
+  mutate(timeoffollowupeskd = as.numeric(floor(time_length(difftime(dateoffollowup_eskd , dateofdiagnosis), "days"))))
+
+# We keep the event information we want for the imputation
+matrix <- matrix %>%
+  dplyr::select(id, age, creatinine, crp, gender, constitutional, musculoskeletal, cutaneous, eye, mucosa,
+           ent, chest, cardio, abdominal, kidney, cns, pns, anca, death, timeoffollowup, eskd, timeoffollowupeskd, maindiagnosis, registry)
+
+# Tranform strings to numbers for relevant variables
+matrix <- matrix  %>% 
+  mutate(gender = case_when(gender == "Male" ~ 0,
+                            gender == "Female" ~ 1)) %>%
+  mutate(anca = case_when(anca == "ANCA negative" ~ 1,
+                              anca == "MPO positive" ~ 2,
+                              anca == "PR3 positive" ~ 3))
+
+# Define the classes of the matrix
+matrix <- matrix  %>% 
+  mutate(age = as.numeric(age)) %>%
+  mutate(creatinine = as.numeric(creatinine)) %>%
+  mutate(crp = as.numeric(crp)) %>%
+  mutate(gender = as.factor(gender)) %>%
+  mutate(constitutional = as.factor(constitutional)) %>%
+  mutate(musculoskeletal = as.factor(musculoskeletal)) %>%
+  mutate(cutaneous = as.factor(cutaneous)) %>%
+  mutate(eye = as.factor(eye)) %>%
+  mutate(mucosa = as.factor(mucosa)) %>%
+  mutate(ent = as.factor(ent)) %>%
+  mutate(chest = as.factor(chest)) %>%
+  mutate(cardio = as.factor(cardio)) %>%
+  mutate(abdominal = as.factor(abdominal)) %>%
+  mutate(kidney = as.factor(kidney)) %>%
+  mutate(cns = as.factor(cns)) %>%
+  mutate(pns = as.factor(pns)) %>%
+  mutate(anca = as.factor(anca)) %>%
+  mutate(death = as.factor(death)) %>%
+  mutate(timeoffollowup = as.numeric(timeoffollowup)) %>%
+  mutate(eskd = as.factor(eskd)) %>%
+  mutate(timeoffollowupeskd = as.numeric(timeoffollowupeskd)) %>%
+  mutate(maindiagnosis = as.factor(maindiagnosis)) %>%
+  mutate(registry = as.factor(registry))
+
+# ClustMD requires a data matrix where the variables are ordered so that the continuous variables come first, the binary (coded 1 and 2) and ordinal variables (coded 1, 2, ...) come second and the nominal variables (coded 1, 2, ...) are in last position.
+matrix <- matrix %>%
+  mutate(gender = as.factor(case_when(gender == 1 ~ 2,
+            gender == 0 ~ 1,
+            TRUE ~ NA)))
+matrix <- matrix %>%
+  mutate(constitutional = as.factor(case_when(constitutional == 1 ~ 2,
+            constitutional == 0 ~ 1,
+            TRUE ~ NA)))
+matrix <- matrix %>%
+  mutate(musculoskeletal = as.factor(case_when(musculoskeletal  == 1 ~ 2,
+            musculoskeletal  == 0 ~ 1,
+            TRUE ~ NA)))
+matrix <- matrix %>%
+  mutate(cutaneous = as.factor(case_when(cutaneous == 1 ~ 2,
+            cutaneous == 0 ~ 1,
+            TRUE ~ NA)))
+matrix <- matrix %>%
+  mutate(eye = as.factor(case_when(eye == 1 ~ 2,
+            eye == 0 ~ 1,
+            TRUE ~ NA)))
+matrix <- matrix %>%
+  mutate(mucosa = as.factor(case_when(mucosa == 1 ~ 2,
+            mucosa == 0 ~ 1,
+            TRUE ~ NA)))
+matrix <- matrix %>%
+  mutate(ent = as.factor(case_when(ent == 1 ~ 2,
+            ent == 0 ~ 1,
+            TRUE ~ NA)))
+matrix <- matrix %>%
+  mutate(chest = as.factor(case_when(chest == 1 ~ 2,
+            chest == 0 ~ 1,
+            TRUE ~ NA)))
+matrix <- matrix %>%
+  mutate(cardio = as.factor(case_when(cardio == 1 ~ 2,
+            cardio == 0 ~ 1,
+            TRUE ~ NA)))
+matrix <- matrix %>%
+  mutate(abdominal = as.factor(case_when(abdominal == 1 ~ 2,
+            abdominal == 0 ~ 1,
+            TRUE ~ NA)))
+matrix <- matrix %>%
+  mutate(kidney = as.factor(case_when(kidney == 1 ~ 2,
+            kidney == 0 ~ 1,
+            TRUE ~ NA)))
+matrix <- matrix %>%
+  mutate(cns = as.factor(case_when(cns == 1 ~ 2,
+            cns == 0 ~ 1,
+            TRUE ~ NA)))
+matrix <- matrix %>%
+  mutate(pns = as.factor(case_when(pns == 1 ~ 2,
+            pns == 0 ~ 1,
+            TRUE ~ NA)))
+
+```
+
+### We explore missingness of data
+```{r}
+# Are there missing values in the dataset?
+any_na(matrix[2:18])
+
+# How many?
+n_miss(matrix[2:18])
+prop_miss(matrix[2:18])
+
+# Which variables are affected?
+matrix[2:18] %>%
+  is.na() %>% 
+  colSums()
+
+```
+
+```{r}
+# Get number of missings per variable (n and %)
+miss_var_summary(matrix[2:18])
+
+# Get number of missings per participant (n and %)
+miss_case_table(matrix[2:18])
+
+# Where are missings located?
+vis_miss(matrix[2:18]) + theme(axis.text.x = element_text(angle=80))
+
+# Which combinations of variables occur to be missing together?
+gg_miss_upset(matrix[2:18], nsets = 17, nintersects = 100)
+
+```
+
+### Removal of >50% missing data and shuffle rows
+```{r}
+# We make the relevant dataframe
+frame <- matrix %>%
+  dplyr::select(id, age, creatinine, crp, gender, constitutional, musculoskeletal, cutaneous, eye, mucosa,
+           ent, chest, cardio, abdominal, kidney, cns, pns, anca)
+
+# We make a dataframe containing information of potential relevance for imputation
+matrix_2 <- matrix %>%
+  dplyr::select(id, death, timeoffollowup, eskd, timeoffollowupeskd, maindiagnosis, registry)
+
+# Remove cases with >50% missing data
+frame <- frame[which(rowMeans(!is.na(frame)) > 0.5), ]
+
+# Merge with relevant data for imputation
+frame <- merge(frame, matrix_2, by = "id")
+
+# Scramble rows
+frame = frame[sample(1:nrow(frame)), ]
+
+# Save this! This contains the row order. (It is in imputed sets as well but not used in imputation. See below)
+write.csv(frame, "full_data_50.csv", row.names = FALSE)
+
+```
+
+### New missingness exploration
+```{r}
+# Are there missing values in the dataset?
+any_na(frame[2:18])
+
+# How many?
+n_miss(frame[2:18])
+prop_miss(frame[2:18])
+
+# Which variables are affected?
+frame[2:18] %>%
+  is.na() %>% 
+  colSums()
+
+# Get number of missings per variable (n and %)
+miss_var_summary(frame[2:18])
+
+# Get number of missings per participant (n and %)
+miss_case_table(frame[2:18])
+
+# Where are missings located?
+vis_miss(frame[2:18]) + theme(axis.text.x = element_text(angle=80))
+
+# Which combinations of variables occur to be missing together?
+gg_miss_upset(frame[2:18], nsets = 17, nintersects = 100)
+
+pdf("missingness_plot.pdf")
+missingness_plot <- gg_miss_upset(frame[2:18], nsets = 17, nintersects = 100)
+print(missingness_plot)
+dev.off()
+
+```
+
+### Set the predictor matrix, run imputation, explore results and print file
+```{r}
+ini <- mice(frame,maxit=0) # dry run without iterations to get the predictor matrix
+pred1 <- ini$predictorMatrix # this is the predictor matrix
+pred1[,'id'] <- 0 # set all id column values to zero to exclude it as a predictor
+
+# Run mice with the predictior matrix above
+imp <- mice(frame, print = FALSE, m = 10, pred = pred1) 
+
+#Side-by-side box-and-whisker plots for the observed and synthetic data (continuous variables)
+ggmice(imp, ggplot2::aes(x = .imp, y = age)) +
+    ggplot2::geom_boxplot() 
+ggmice(imp, ggplot2::aes(x = .imp, y = creatinine)) +
+    ggplot2::geom_boxplot() 
+ggmice(imp, ggplot2::aes(x = .imp, y = crp)) +
+    ggplot2::geom_boxplot() 
+     
+# Kernel density estimates for the marginal distributions of the observed data (blue) and the m=10 densities per variable calculated from the imputed data (thin red lines) (continuous variables)
+densityplot(imp)
+
+# Check center and dispersion convergence over the ten iterations and 10 sets
+plot(imp)
+
+# Summary statistics for all 10 sets, including incomplete set. 
+
+# Complete 
+summary(frame[2:18])
+
+# First imputed set
+summary(complete(imp, action =1))
+
+# Second imputed set
+summary(complete(imp, action =2))
+
+# Third imputed set
+summary(complete(imp, action =3))
+
+# Fourth imputed set
+summary(complete(imp, action =4))
+
+# Fifth imputed set
+summary(complete(imp, action =5))
+
+# Sixth imputed set
+summary(complete(imp, action =6))
+
+# Seventh imputed set
+summary(complete(imp, action =7))
+
+# 8th imputed set
+summary(complete(imp, action =8))
+
+# 9th imputed set
+summary(complete(imp, action =9))
+
+# 10th  imputed set
+summary(complete(imp, action =10))
+
+# Compare how well kidney involvement predicts creatinine in complete-case analysis and in pooled over 10 imputed sets
+fit_comp <- lm(data = frame, creatinine ~ kidney)
+summary(fit_comp)
+
+fit <- with(data = imp, exp = lm(creatinine ~ kidney))
+summary(pool.syn(fit))
+
+# Compare how well kidney involvement predicts creatinine in complete-case analysis and in pooled over 10 imputed sets
+fit <- with(data = imp, exp = glm(ent ~ anca, family = binomial))
+summary(pool.syn(fit))
+
+fit_comp <- glm(data = frame, ent ~ anca, family = binomial)
+summary(fit_comp)
+
+# Heads of some of the imputed data
+head(imp$imp$creatinine)
+head(imp$imp$age)
+head(imp$imp$crp)
+head(imp$imp$constitutional)
+head(imp$imp$anca)
+
+# Any problems?
+imp$loggedEvents
+
+# We save the imputed files in an .rda object
+save(imp, file = "imputed_data.rda")
+
+```
+
+
+
+
+
+
+
+
+
+
