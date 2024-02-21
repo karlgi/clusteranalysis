@@ -6,7 +6,7 @@ To start: registry_prepared.csv are files where registry is the registry name (c
 | **Class**    | string   | numeric   | numeric   | numeric| string   | numeric        | numeric            | numeric      | numeric     | numeric          |numeric         | numeric        |numeric        |numeric           |numeric      | numeric         |numeric         | string   | numeric         | date    | date   | logical    | date            | logical     | date      | string   | string    |
 | **Information** | ...  | years   | mikromol/l     | mg/L  |  0 - No, 1-Yes  |  0 - No, 1-Yes         |  0 - No, 1-Yes           |  0 - No, 1-Yes     |  0 - No, 1-Yes   |  0 - No, 1-Yes    | 0 - No, 1-Yes  |  0 - No, 1-Yes   | 0 - No, 1-Yes  | 0 - No, 1-Yes     |  0 - No, 1-Yes | 0 - No, 1-Yes   | 0 - No, 1-Yes  | PR3 positive, MPO positive, ANCA negative | in days      |yyyy-mm-dd         | yyyy-mm-dd        | TRUE, FALSE| yyyy-mm-dd      | TRUE, FALSE| yyyy-mm-dd   | GPA, MPA        | Czech, FVSG, GEVAS, POLVAS, RKD, Skåne   |
 
-1. Imputation of data: full_matrix_generation.rmd\
+1. Imputation of data: [full_matrix_generation.rmd](https://github.com/karlgi/clusteranalysis/blob/main/full_matrix_generation.Rmd)\
 Here all registry_prepared.csv are imported. Rows containing more than 50% missing values are removed. The rows are shuffled. Variables are selected and data missingness is explored. Data is imputed to generate 10 complete sets. This data is saved in imputed_data.rda. 
 
 2.	Model-based clustering: cluster_generation.rmd\
