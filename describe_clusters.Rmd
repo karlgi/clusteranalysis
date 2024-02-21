@@ -1,0 +1,2416 @@
+---
+title: "Cluster analysis - workflow: 3. Describe clusters"
+author: "Karl Gisslander"
+date: "2024-02-21"
+output: html_document
+---
+
+### Load libraries
+```{r}
+library(tidyverse)
+library(clustMD)
+library(mcclust)
+library(caret)
+library(qwraps2)
+library(kableExtra)
+library(mice)
+library(survival)
+library(survminer)
+library(adjustedCurves)
+library(riskRegression)
+library(fmsb)
+library(forcats)
+library(plotly)
+```
+
+### Load all cluster resuls
+```{r}
+load("res_1_high.rda")
+load("res_2_high.rda")
+load("res_3_high.rda")
+load("res_4_high.rda")
+load("res_5_high.rda")
+load("res_6_high.rda")
+load("res_7_high.rda")
+load("res_8_high.rda")
+load("res_9_high.rda")
+load("res_10_high.rda")
+
+# Load imputed data
+load("imputed_data.rda")
+```
+
+### Load original data, and return averaged cluster probabilities
+```{r}
+# Read full data
+data <- imp$data
+
+# Set clusters into the matrix 
+clusters <- cbind(res_1_high$cl, res_2_high$cl, res_3_high$cl, res_4_high$cl, res_5_high$cl,
+                  res_6_high$cl, res_7_high$cl, res_8_high$cl, res_9_high$cl, res_10_high$cl)
+
+# Merge clusters and matrix 
+matrix <- cbind(data, clusters)
+
+names(matrix)[25] <- 'frame_1'
+names(matrix)[26] <- 'frame_2'
+names(matrix)[27] <- 'frame_3'
+names(matrix)[28] <- 'frame_4'
+names(matrix)[29] <- 'frame_5'
+names(matrix)[30] <- 'frame_6'
+names(matrix)[31] <- 'frame_7'
+names(matrix)[32] <- 'frame_8'
+names(matrix)[33] <- 'frame_9'
+names(matrix)[34] <- 'frame_10'
+
+# Let's return the mean cluster asssignment probabilites over all 10 sets
+avg_tau <- rbind((res_1_high$tau[,1]+res_2_high$tau[,1]+res_3_high$tau[,1]+res_4_high$tau[,1]+res_5_high$tau[,1]+res_6_high$tau[,1]+res_7_high$tau[,1]+res_8_high$tau[,1]+res_9_high$tau[,1]+res_10_high$tau[,1])/10,
+      (res_1_high$tau[,2]+res_2_high$tau[,2]+res_3_high$tau[,2]+res_4_high$tau[,2]+res_5_high$tau[,2]+res_6_high$tau[,2]+res_7_high$tau[,2]+res_8_high$tau[,2]+res_9_high$tau[,2]+res_10_high$tau[,2])/10,
+      (res_1_high$tau[,3]+res_2_high$tau[,3]+res_3_high$tau[,3]+res_4_high$tau[,3]+res_5_high$tau[,3]+res_6_high$tau[,3]+res_7_high$tau[,3]+res_8_high$tau[,3]+res_9_high$tau[,3]+res_10_high$tau[,3])/10,
+      (res_1_high$tau[,4]+res_2_high$tau[,4]+res_3_high$tau[,4]+res_4_high$tau[,4]+res_5_high$tau[,4]+res_6_high$tau[,4]+res_7_high$tau[,4]+res_8_high$tau[,4]+res_9_high$tau[,4]+res_10_high$tau[,4])/10,
+      (res_1_high$tau[,5]+res_2_high$tau[,5]+res_3_high$tau[,5]+res_4_high$tau[,5]+res_5_high$tau[,5]+res_6_high$tau[,5]+res_7_high$tau[,5]+res_8_high$tau[,5]+res_9_high$tau[,5]+res_10_high$tau[,5])/10)
+
+#Let's take highest average tau (probability) and call this cluster assignment
+ind <- mclust::map(t(avg_tau))
+
+# Merge in "ind" in the frame
+matrix <- cbind(matrix, ind)
+names(matrix)[35] <- 'index_cl'
+
+# These are the averaged cluster assignment probabilities 
+highesttau <- as.data.frame(t(avg_tau))
+
+# This is the highest cluster probability
+highesttau <- apply(highesttau, 1, max, na.rm=TRUE)
+
+# We make a little frame for plotting
+probplot <- as.data.frame(cbind(matrix$index_cl, highesttau))
+
+probplot$V1 <- as.factor(probplot$V1)
+probplot$V1 <- fct_relevel(probplot$V1, "2", "4", "5", "1", "3")
+
+probplot <- probplot[order(probplot$V1, probplot$highesttau),]
+probplot$names <- 1:length(probplot$V1)
+
+# Here are mean probabilites per group
+mean_prob <- probplot %>%
+  group_by(factor(V1)) %>%
+  summarise_at(vars(highesttau), list(name = mean))
+# Extract manually
+mean_prob <- as.data.frame(mean_prob)
+mean_prob[1,2]*100
+
+legend_labels <- c("SK","MPO-K", "PR3-K", "YR", "IMS")
+
+# Plot cluster assignment probability
+pdf("probability_plot.pdf")
+
+probability_plot <- ggplot(probplot, aes(x = as.factor(names), y = highesttau * 100, fill = factor(V1))) +
+  geom_histogram(stat = "identity", position = "dodge") +
+  geom_hline(yintercept = mean_prob[1, 2] * 100, linetype = "dashed", color = "#00468B99") +
+  geom_hline(yintercept = mean_prob[2, 2] * 100, linetype = "dashed", color = "#ED000099") +
+  geom_hline(yintercept = mean_prob[3, 2] * 100, linetype = "dashed", color = "#42B54099") +
+  geom_hline(yintercept = mean_prob[4, 2] * 100, linetype = "dashed", color = "#0099B499") +
+  geom_hline(yintercept = mean_prob[5, 2] * 100, linetype = "dashed", color = "#925E9F99") +
+  ylab("Cluster assignment uncertainty") +
+  xlab("") +
+  labs(fill = "Cluster") +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank()) +
+  scale_fill_manual(values = c("#00468B99", "#ED000099", "#42B54099", "#0099B499", "#925E9F99"),
+                    breaks = levels(factor(probplot$V1)),
+                    labels = legend_labels)
+
+print(probability_plot)
+dev.off()
+probability_plot
+
+mean(probplot$highesttau)
+
+key <- as.data.frame(cbind(matrix$id, matrix$index_cl))
+colnames(key) <- c("id","index_cl")
+write.csv(key, "key_for_index_cluster.csv", row.names = FALSE)
+
+```
+
+### How many organs involved
+```{r}
+# Sum organs involved
+matrix$nr_organs <- rowSums(matrix[, 6:17] == "2" & !is.na(matrix[, 6:17]))
+
+```
+
+### View summary
+```{r}
+# Create table for descriptive statistics
+options(qwraps2_markup = 'markdown')
+aav_summaries <-
+  list(
+    "Demographics:" = 
+      list(
+        "Age, mean (SD) years"    = ~ qwraps2::mean_sd(age, denote_sd = "paren", na_rm = TRUE, show_n = "always"),
+        "Male, n (%)"    = ~ qwraps2::n_perc0(gender == 1, na_rm = TRUE,show_denom ="always"),
+        "Female, n (%)"    = ~ qwraps2::n_perc0(gender == 2, na_rm = TRUE,show_denom ="always")),
+     "Registry:" =
+         list(
+           "Czech, n (%)"    = ~ qwraps2::n_perc0(registry == "Czech", na_rm = TRUE,show_denom ="always"),
+           "FVSG, n (%)"    = ~ qwraps2::n_perc0(registry == "FVSG", na_rm = TRUE,show_denom ="always"),
+           "GeVas, n (%)"    = ~ qwraps2::n_perc0(registry == "GeVas", na_rm = TRUE,show_denom ="always"),
+           "POLVAS, n (%)"    = ~ qwraps2::n_perc0(registry == "Polvas", na_rm = TRUE,show_denom ="always"),
+           "RKD, n (%)"    = ~ qwraps2::n_perc0(registry == "RKD", na_rm = TRUE,show_denom ="always"),
+           "Skåne, n (%)"    = ~ qwraps2::n_perc0(registry == "Skåne", na_rm = TRUE,show_denom ="always")),
+    
+    "Diagnosis:" =
+         list(
+           "GPA, n (%)"    = ~ qwraps2::n_perc0(maindiagnosis == "GPA", na_rm = TRUE,show_denom ="always"),
+           "MPA, n (%)"    = ~ qwraps2::n_perc0(maindiagnosis == "MPA", na_rm = TRUE,show_denom ="always")),
+       "Organ Pattern:" = 
+         list(
+           "Musculoskeletal, n (%)"     = ~ qwraps2::n_perc0(musculoskeletal == "2", na_rm = TRUE,show_denom ="always"),
+           "Cutaneous, n (%)"     = ~ qwraps2::n_perc0(cutaneous == "2", na_rm = TRUE,show_denom ="always"),
+           "Eyes, n (%)"     = ~ qwraps2::n_perc0(eye == "2", na_rm = TRUE,show_denom ="always"),
+           "Ear-nose-throat, n (%)"     = ~ qwraps2::n_perc0(ent == "2", na_rm = TRUE,show_denom ="always"),
+           "Lung, n (%)"     = ~ qwraps2::n_perc0(chest == "2", na_rm = TRUE,show_denom ="always"),
+           "Cardiovascular, n (%)"     = ~ qwraps2::n_perc0(cardio == "2", na_rm = TRUE,show_denom ="always"),
+           "Abdominal, n (%)"     = ~ qwraps2::n_perc0(abdominal== "2", na_rm = TRUE,show_denom ="always"), 
+           "Renal, n (%)"     = ~ qwraps2::n_perc0(kidney == "2", na_rm = TRUE,show_denom ="always"),
+           "Central nervous system, n (%)"     = ~ qwraps2::n_perc0(cns == "2", na_rm = TRUE,show_denom ="always"),
+           "Peripheral nervous system, n (%)"     = ~ qwraps2::n_perc0(pns == "2", na_rm = TRUE,show_denom ="always"),
+           "Number of organs, mean (SD)"     = ~ qwraps2::mean_sd(nr_organs, denote_sd = "paren", na_rm = TRUE, show_n = "always")),
+       "ANCA:" =
+         list(
+           "PR3/c-positive, n (%)"     = ~ qwraps2::n_perc0(anca == "3", na_rm = TRUE,show_denom ="always"),
+           "MPO/p-positive, n (%)"     = ~ qwraps2::n_perc0(anca == "2", na_rm = TRUE,show_denom ="always"),
+           "ANCA-negative, n (%)"    = ~ qwraps2::n_perc0(anca == "1", na_rm = TRUE,show_denom ="always")),
+    "Laboratory:" = 
+      list(
+        "Creatinine, median (IQR) umol/L"    = ~ qwraps2::median_iqr(creatinine, na_rm = TRUE, show_n = "always"),
+        "CRP, median (IQR) mg/L"  = ~ qwraps2::median_iqr(crp,na_rm = TRUE, show_n = "always")),
+    "Cluster:" = 
+      list(
+        "YRS, n (%)"     = ~ qwraps2::n_perc0(index_cl == 1,show_denom ="always"),
+        "SIKL, n (%)"     = ~ qwraps2::n_perc0(index_cl == 2,show_denom ="always"),
+        "IMS, n (%)"     = ~ qwraps2::n_perc0(index_cl == 3,show_denom ="always"),
+        "MPO-K, n (%)"     = ~ qwraps2::n_perc0(index_cl == 4,show_denom ="always"),
+        "PR3-K, n (%)"     = ~ qwraps2::n_perc0(index_cl == 5,show_denom ="always")),    
+    "Outcome:" = 
+      list(
+        "Death, n (%)"         = ~ qwraps2::n_perc0(death == TRUE, na_rm = TRUE,show_denom ="always"),
+        "ESKD, n (%)"         = ~ qwraps2::n_perc0(eskd == TRUE, na_rm = TRUE,show_denom ="always"),
+        "Follow up, mean (SD) years "     = ~ qwraps2::mean_sd(timeoffollowup/365.25, denote_sd = "paren", na_rm = TRUE, show_n = "always"))
+  )
+
+by_diagnosis <- summary_table(dplyr::group_by(matrix, matrix$maindiagnosis), aav_summaries)
+by_clustmd_clusters <- summary_table(dplyr::group_by(matrix, matrix$index_cl), aav_summaries)
+by_both <- cbind(by_diagnosis, by_clustmd_clusters )
+
+by_both %>%
+  kbl(col.names = c("GPA", "MPA", "YRS", "SIKL", "IMS", "MPO-K", "PR3-K")) %>%
+  kable_styling(latex_options="scale_down") %>%
+  add_header_above(c("","Diagnosis" = 2, "Cluster" = 5)) %>%
+    pack_rows("Demographics", 1, 3) %>%
+    pack_rows("Registry", 4, 9) %>%
+    pack_rows("Diagnosis", 10, 11) %>%
+    pack_rows("Organ pattern", 12, 22) %>%
+    pack_rows("ANCA", 23, 25) %>%
+    pack_rows("Laboratory", 26, 27) %>%
+    pack_rows("Cluster", 28, 32) %>%
+    pack_rows("Outcome", 33, 35)
+
+write.csv(by_both, "table1_test.csv", row.names = TRUE)
+
+```
+
+### Look at the mean vector
+```{r}
+# Visualise average mean vector for cluster and variable
+avg_means <- t(rbind((res_1_high$means[,1]+res_2_high$means[,1]+res_3_high$means[,1]+res_4_high$means[,1]+res_5_high$means[,1]+res_6_high$means[,1]+res_7_high$means[,1]+res_8_high$means[,1]+res_9_high$means[,1]+res_10_high$means[,1])/10,
+                     (res_1_high$means[,2]+res_2_high$means[,2]+res_3_high$means[,2]+res_4_high$means[,2]+res_5_high$means[,2]+res_6_high$means[,2]+res_7_high$means[,2]+res_8_high$means[,2]+res_9_high$means[,2]+res_10_high$means[,2])/10,
+                     (res_1_high$means[,3]+res_2_high$means[,3]+res_3_high$means[,3]+res_4_high$means[,3]+res_5_high$means[,3]+res_6_high$means[,3]+res_7_high$means[,3]+res_8_high$means[,3]+res_9_high$means[,3]+res_10_high$means[,3])/10,
+                     (res_1_high$means[,4]+res_2_high$means[,4]+res_3_high$means[,4]+res_4_high$means[,4]+res_5_high$means[,4]+res_6_high$means[,4]+res_7_high$means[,4]+res_8_high$means[,4]+res_9_high$means[,4]+res_10_high$means[,4])/10,
+                     (res_1_high$means[,5]+res_2_high$means[,5]+res_3_high$means[,5]+res_4_high$means[,5]+res_5_high$means[,5]+res_6_high$means[,5]+res_7_high$means[,5]+res_8_high$means[,5]+res_9_high$means[,5]+res_10_high$means[,5])/10))
+
+avg_means <- as.data.frame(avg_means)
+avg_means$variable <- rownames(avg_means)
+
+long_avg_means <- avg_means %>%
+  pivot_longer(!variable,names_to = "cluster", values_to = "value")
+
+colnames(long_avg_means ) <- c("Variable", "Cluster", "value")
+long_avg_means <- long_avg_means %>%
+  mutate(Cluster = case_when(Cluster == "V1" ~ "YR",
+                             Cluster == "V2" ~ "SK",
+                             Cluster == "V3" ~ "IMS",
+                             Cluster == "V4" ~ "MPO-K",
+                             Cluster == "V5" ~ "PR3-K"
+                             ))
+
+long_avg_means <- long_avg_means %>%
+  mutate(Variable = case_when(Variable == "age" ~ "Age",
+                              Variable == "creatinine" ~ "S-Creatinine",
+                              Variable == "crp" ~ "CRP",
+                              Variable == "gender" ~ "Gender",
+                              Variable == "constitutional" ~ "Constitutional",
+                              Variable == "musculoskeletal" ~ "Musculoskeletal",
+                              Variable == "cutaneous" ~ "Skin",
+                              Variable == "eye" ~ "Eye",
+                              Variable == "mucosa" ~ "Mucosa",
+                              Variable == "ent" ~ "ENT",
+                              Variable == "chest" ~ "Lung",
+                              Variable == "cardio" ~ "Cardiovascular",
+                              Variable == "abdominal" ~ "Gastrointestinal",
+                              Variable == "kidney" ~ "Kidney",
+                              Variable == "cns" ~ "CNS",
+                              Variable == "pns" ~ "PNS",
+                              Variable == "anca_1" ~ "ANCA 1",
+                              Variable == "anca_2" ~ "ANCA 2"
+                             ))
+# 
+# Define order of Cluster
+desired_order_cl <- c("SK","MPO-K", "PR3-K", "YR", "IMS")
+
+long_avg_means$Cluster <- fct_relevel(long_avg_means$Cluster, desired_order_cl)
+
+# Define order of Variable
+desired_order <- c("Age", "S-Creatinine", "CRP", "Gender", "Constitutional", "Musculoskeletal", "Skin",
+                   "Eye", "Mucosa", "ENT", "Lung", "Cardiovascular", "Gastrointestinal", "Kidney",
+                   "CNS", "PNS", "ANCA 1", "ANCA 2")
+
+# Reorder Variable based on the desired order
+long_avg_means$Variable <- factor(long_avg_means$Variable, levels = rev(desired_order))
+
+# Order frame
+long_avg_means <- long_avg_means[order(long_avg_means$Variable, long_avg_means$Cluster),]
+
+pdf("mean_vector_plot.pdf")
+mean_vector_plot <- ggplot(long_avg_means , aes(x = value, y = Variable, fill = Cluster)) +
+  geom_dotplot(binaxis = "y", stackdir = "center", dotsize = 0.5) +
+  #theme_minimal() +
+  labs(
+    x = "Mean vector",
+    y = "Variable"
+  ) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  theme_minimal()+
+  scale_fill_manual(values = c("#00468B99", "#ED000099", "#42B54099", "#0099B499", "#925E9F99"))
+print(mean_vector_plot)
+dev.off()
+mean_vector_plot
+
+```
+
+### Create datasets for outcome analysis
+```{r}
+# To view outcome we need to import the imputed data 
+load("imputed_data.rda")
+
+# We fit the relevant Cox regressions using mice:as.mira and pool.
+# First we create the 10 dataframes including cluster affiliation
+imp.clust.1 <- cbind(complete(imp, 1), res_1_high$cl)
+imp.clust.2 <- cbind(complete(imp, 2), res_2_high$cl)
+imp.clust.3 <- cbind(complete(imp, 3), res_3_high$cl)
+imp.clust.4 <- cbind(complete(imp, 4), res_4_high$cl)
+imp.clust.5 <- cbind(complete(imp, 5), res_5_high$cl)
+imp.clust.6 <- cbind(complete(imp, 6), res_6_high$cl)
+imp.clust.7 <- cbind(complete(imp, 7), res_7_high$cl)
+imp.clust.8 <- cbind(complete(imp, 8), res_8_high$cl)
+imp.clust.9 <- cbind(complete(imp, 9), res_9_high$cl)
+imp.clust.10 <- cbind(complete(imp, 10), res_10_high$cl)
+
+# We change name and class of the cluster variable
+imp.clust.1 <- imp.clust.1 %>%
+  mutate(cluster = as.factor(`res_1_high$cl`))
+imp.clust.2 <- imp.clust.2 %>%
+  mutate(cluster = as.factor(`res_2_high$cl`))
+imp.clust.3 <- imp.clust.3 %>%
+  mutate(cluster = as.factor(`res_3_high$cl`))
+imp.clust.4 <- imp.clust.4 %>%
+  mutate(cluster = as.factor(`res_4_high$cl`))
+imp.clust.5 <- imp.clust.5 %>%
+  mutate(cluster = as.factor(`res_5_high$cl`))
+imp.clust.6 <- imp.clust.6 %>%
+  mutate(cluster = as.factor(`res_6_high$cl`))
+imp.clust.7 <- imp.clust.7 %>%
+  mutate(cluster = as.factor(`res_7_high$cl`))
+imp.clust.8 <- imp.clust.8 %>%
+  mutate(cluster = as.factor(`res_8_high$cl`))
+imp.clust.9 <- imp.clust.9 %>%
+  mutate(cluster = as.factor(`res_9_high$cl`))
+imp.clust.10 <- imp.clust.10 %>%
+  mutate(cluster = as.factor(`res_10_high$cl`))
+
+# We change death to 1/2 instead of TRUE/FALSE
+imp.clust.1 <- imp.clust.1 %>%
+  mutate(death = case_when(death == TRUE ~ 2,
+                           death == FALSE ~1))
+
+imp.clust.2 <- imp.clust.2 %>%
+  mutate(death = case_when(death == TRUE ~ 2,
+                           death == FALSE ~1))
+
+imp.clust.3 <- imp.clust.3 %>%
+  mutate(death = case_when(death == TRUE ~ 2,
+                           death == FALSE ~1))
+
+imp.clust.4 <- imp.clust.4 %>%
+  mutate(death = case_when(death == TRUE ~ 2,
+                           death == FALSE ~1))
+
+imp.clust.5 <- imp.clust.5 %>%
+  mutate(death = case_when(death == TRUE ~ 2,
+                           death == FALSE ~1))
+
+imp.clust.6 <- imp.clust.6 %>%
+  mutate(death = case_when(death == TRUE ~ 2,
+                           death == FALSE ~1))
+
+imp.clust.7 <- imp.clust.7 %>%
+  mutate(death = case_when(death == TRUE ~ 2,
+                           death == FALSE ~1))
+
+imp.clust.8 <- imp.clust.8 %>%
+  mutate(death = case_when(death == TRUE ~ 2,
+                           death == FALSE ~1))
+
+imp.clust.9 <- imp.clust.9 %>%
+  mutate(death = case_when(death == TRUE ~ 2,
+                           death == FALSE ~1))
+
+imp.clust.10 <- imp.clust.10 %>%
+  mutate(death = case_when(death == TRUE ~ 2,
+                           death == FALSE ~1))
+```
+
+### Create variable with Mahr et al classification
+```{r}
+# First we create the classification following the flowchart provided in the Mahr et al paper. 
+imp.clust.1 <- imp.clust.1 %>%
+  mutate(mahr_class = case_when(abdominal == "2" ~ "GI AAV",
+                                abdominal != "2" & cardio == "2" ~ "CV AAV",
+                                kidney == "1" & abdominal != "2" & cardio != "2" ~ "Non-renal AAV",
+                                kidney == "2" & abdominal != "2" & cardio != "2" & anca == "3" ~ "Renal AAV with PR3-ANCA",
+                                TRUE ~ "Renal AAV without PR3-ANCA"
+                                ))
+
+imp.clust.2 <- imp.clust.2 %>%
+  mutate(mahr_class = case_when(abdominal == "2" ~ "GI AAV",
+                                abdominal != "2" & cardio == "2" ~ "CV AAV",
+                                kidney == "1" & abdominal != "2" & cardio != "2" ~ "Non-renal AAV",
+                                kidney == "2" & abdominal != "2" & cardio != "2" & anca == "3" ~ "Renal AAV with PR3-ANCA",
+                                TRUE ~ "Renal AAV without PR3-ANCA"
+                                ))
+
+imp.clust.3 <- imp.clust.3 %>%
+  mutate(mahr_class = case_when(abdominal == "2" ~ "GI AAV",
+                                abdominal != "2" & cardio == "2" ~ "CV AAV",
+                                kidney == "1" & abdominal != "2" & cardio != "2" ~ "Non-renal AAV",
+                                kidney == "2" & abdominal != "2" & cardio != "2" & anca == "3" ~ "Renal AAV with PR3-ANCA",
+                                TRUE ~ "Renal AAV without PR3-ANCA"
+                                ))
+
+imp.clust.4 <- imp.clust.4 %>%
+  mutate(mahr_class = case_when(abdominal == "2" ~ "GI AAV",
+                                abdominal != "2" & cardio == "2" ~ "CV AAV",
+                                kidney == "1" & abdominal != "2" & cardio != "2" ~ "Non-renal AAV",
+                                kidney == "2" & abdominal != "2" & cardio != "2" & anca == "3" ~ "Renal AAV with PR3-ANCA",
+                                TRUE ~ "Renal AAV without PR3-ANCA"
+                                ))
+
+imp.clust.5 <- imp.clust.5 %>%
+  mutate(mahr_class = case_when(abdominal == "2" ~ "GI AAV",
+                                abdominal != "2" & cardio == "2" ~ "CV AAV",
+                                kidney == "1" & abdominal != "2" & cardio != "2" ~ "Non-renal AAV",
+                                kidney == "2" & abdominal != "2" & cardio != "2" & anca == "3" ~ "Renal AAV with PR3-ANCA",
+                                TRUE ~ "Renal AAV without PR3-ANCA"
+                                ))
+    
+
+imp.clust.6 <- imp.clust.6 %>%
+  mutate(mahr_class = case_when(abdominal == "2" ~ "GI AAV",
+                                abdominal != "2" & cardio == "2" ~ "CV AAV",
+                                kidney == "1" & abdominal != "2" & cardio != "2" ~ "Non-renal AAV",
+                                kidney == "2" & abdominal != "2" & cardio != "2" & anca == "3" ~ "Renal AAV with PR3-ANCA",
+                                TRUE ~ "Renal AAV without PR3-ANCA"
+                                ))
+
+imp.clust.7 <- imp.clust.7 %>%
+  mutate(mahr_class = case_when(abdominal == "2" ~ "GI AAV",
+                                abdominal != "2" & cardio == "2" ~ "CV AAV",
+                                kidney == "1" & abdominal != "2" & cardio != "2" ~ "Non-renal AAV",
+                                kidney == "2" & abdominal != "2" & cardio != "2" & anca == "3" ~ "Renal AAV with PR3-ANCA",
+                                TRUE ~ "Renal AAV without PR3-ANCA"
+                                ))
+
+imp.clust.8 <- imp.clust.8 %>%
+  mutate(mahr_class = case_when(abdominal == "2" ~ "GI AAV",
+                                abdominal != "2" & cardio == "2" ~ "CV AAV",
+                                kidney == "1" & abdominal != "2" & cardio != "2" ~ "Non-renal AAV",
+                                kidney == "2" & abdominal != "2" & cardio != "2" & anca == "3" ~ "Renal AAV with PR3-ANCA",
+                                TRUE ~ "Renal AAV without PR3-ANCA"
+                                ))
+
+imp.clust.9 <- imp.clust.9 %>%
+  mutate(mahr_class = case_when(abdominal == "2" ~ "GI AAV",
+                                abdominal != "2" & cardio == "2" ~ "CV AAV",
+                                kidney == "1" & abdominal != "2" & cardio != "2" ~ "Non-renal AAV",
+                                kidney == "2" & abdominal != "2" & cardio != "2" & anca == "3" ~ "Renal AAV with PR3-ANCA",
+                                TRUE ~ "Renal AAV without PR3-ANCA"
+                                ))
+
+imp.clust.10 <- imp.clust.10 %>%
+  mutate(mahr_class = case_when(abdominal == "2" ~ "GI AAV",
+                                abdominal != "2" & cardio == "2" ~ "CV AAV",
+                                kidney == "1" & abdominal != "2" & cardio != "2" ~ "Non-renal AAV",
+                                kidney == "2" & abdominal != "2" & cardio != "2" & anca == "3" ~ "Renal AAV with PR3-ANCA",
+                                TRUE ~ "Renal AAV without PR3-ANCA"
+                                ))
+
+# Make to factor
+imp.clust.1 <- imp.clust.1 %>% 
+  mutate(mahr_class = as.factor(mahr_class))
+
+imp.clust.2 <- imp.clust.2 %>% 
+  mutate(mahr_class = as.factor(mahr_class))
+
+imp.clust.3 <- imp.clust.3 %>% 
+  mutate(mahr_class = as.factor(mahr_class))
+
+imp.clust.4 <- imp.clust.4 %>% 
+  mutate(mahr_class = as.factor(mahr_class))
+
+imp.clust.5 <- imp.clust.5 %>% 
+  mutate(mahr_class = as.factor(mahr_class))
+
+imp.clust.6 <- imp.clust.6 %>% 
+  mutate(mahr_class = as.factor(mahr_class))
+
+imp.clust.7 <- imp.clust.7 %>% 
+  mutate(mahr_class = as.factor(mahr_class))
+
+imp.clust.8 <- imp.clust.8 %>% 
+  mutate(mahr_class = as.factor(mahr_class))
+
+imp.clust.9 <- imp.clust.9 %>% 
+  mutate(mahr_class = as.factor(mahr_class))
+
+imp.clust.10 <- imp.clust.10 %>% 
+  mutate(mahr_class = as.factor(mahr_class))
+
+
+```
+
+
+### We run pooled outcome analysis
+```{r}
+# We relevel so that the benignest cluster is reference in all frames
+imp.clust.1$cluster <- relevel(imp.clust.1$cluster, ref = "1")
+imp.clust.2$cluster <- relevel(imp.clust.2$cluster, ref = "1")
+imp.clust.3$cluster <- relevel(imp.clust.3$cluster, ref = "1")
+imp.clust.4$cluster <- relevel(imp.clust.4$cluster, ref = "1")
+imp.clust.5$cluster <- relevel(imp.clust.5$cluster, ref = "1")
+imp.clust.6$cluster <- relevel(imp.clust.6$cluster, ref = "1")
+imp.clust.7$cluster <- relevel(imp.clust.7$cluster, ref = "1")
+imp.clust.8$cluster <- relevel(imp.clust.8$cluster, ref = "1")
+imp.clust.9$cluster <- relevel(imp.clust.9$cluster, ref = "1")
+imp.clust.10$cluster <- relevel(imp.clust.10$cluster, ref = "1")
+
+# We run 10 Cox regressions over the sets
+cl_cox1 <- coxph(Surv(timeoffollowup, death) ~ cluster+age+gender, data = imp.clust.1)
+cl_cox2 <- coxph(Surv(timeoffollowup, death) ~ cluster+age+gender, data = imp.clust.2)
+cl_cox3 <- coxph(Surv(timeoffollowup, death) ~ cluster+age+gender, data = imp.clust.3)
+cl_cox4 <- coxph(Surv(timeoffollowup, death) ~ cluster+age+gender, data = imp.clust.4)
+cl_cox5 <- coxph(Surv(timeoffollowup, death) ~ cluster+age+gender, data = imp.clust.5)
+cl_cox6 <- coxph(Surv(timeoffollowup, death) ~ cluster+age+gender, data = imp.clust.6)
+cl_cox7 <- coxph(Surv(timeoffollowup, death) ~ cluster+age+gender, data = imp.clust.7)
+cl_cox8 <- coxph(Surv(timeoffollowup, death) ~ cluster+age+gender, data = imp.clust.8)
+cl_cox9 <- coxph(Surv(timeoffollowup, death) ~ cluster+age+gender, data = imp.clust.9)
+cl_cox10 <- coxph(Surv(timeoffollowup, death) ~ cluster+age+gender, data = imp.clust.10)
+
+# We summarize the pooled estimates
+cl.fitlist <- list(cl_cox1, cl_cox2, cl_cox3, cl_cox4, cl_cox5, cl_cox6, cl_cox7, cl_cox8, cl_cox9, cl_cox10)
+cl.est <- pool(as.mira(cl.fitlist))
+test <- summary(cl.est, conf.int = TRUE)
+test
+
+# These are the exp estimates
+cl.forestplot <- cbind(test$term, exp(test$estimate), exp(test$`2.5 %`), exp(test$`97.5 %`))
+# Insert reference rows
+cl.forestplot <- rbind(c("Cluster 1", 0,0,0), cl.forestplot)
+new_mat <- matrix(0,nrow=8,ncol=4)  
+new_mat[-7,] <-cl.forestplot 
+cl.forestplot  <- new_mat
+cl.forestplot[,1] <- c("Cluster 1", "Cluster 2", "Cluster 3", "Cluster 4", "Cluster 5", "Age", "Female", "Male")
+cl.forestplot
+
+# Retrieve AIC from all 10 models
+mean_cl_avg <- mean(c(AIC(cl_cox1),
+AIC(cl_cox2),
+AIC(cl_cox3),
+AIC(cl_cox4),
+AIC(cl_cox5),
+AIC(cl_cox6),
+AIC(cl_cox7),
+AIC(cl_cox8),
+AIC(cl_cox9),
+AIC(cl_cox10)))
+
+
+# We run 10 Cox regressions over the sets
+dia_cox1 <- coxph(Surv(timeoffollowup, death) ~ maindiagnosis+age+gender, data = imp.clust.1)
+dia_cox2 <- coxph(Surv(timeoffollowup, death) ~ maindiagnosis+age+gender, data = imp.clust.2)
+dia_cox3 <- coxph(Surv(timeoffollowup, death) ~ maindiagnosis+age+gender, data = imp.clust.3)
+dia_cox4 <- coxph(Surv(timeoffollowup, death) ~ maindiagnosis+age+gender, data = imp.clust.4)
+dia_cox5 <- coxph(Surv(timeoffollowup, death) ~ maindiagnosis+age+gender, data = imp.clust.5)
+dia_cox6 <- coxph(Surv(timeoffollowup, death) ~ maindiagnosis+age+gender, data = imp.clust.6)
+dia_cox7 <- coxph(Surv(timeoffollowup, death) ~ maindiagnosis+age+gender, data = imp.clust.7)
+dia_cox8 <- coxph(Surv(timeoffollowup, death) ~ maindiagnosis+age+gender, data = imp.clust.8)
+dia_cox9 <- coxph(Surv(timeoffollowup, death) ~ maindiagnosis+age+gender, data = imp.clust.9)
+dia_cox10 <- coxph(Surv(timeoffollowup, death) ~ maindiagnosis+age+gender, data = imp.clust.10)
+
+# We summarize the pooled estimates
+dia.fitlist <- list(dia_cox1, dia_cox2, dia_cox3, dia_cox4, dia_cox5, dia_cox6, dia_cox7, dia_cox8, dia_cox9, dia_cox10)
+dia.est <- pool(as.mira(dia.fitlist))
+test2 <- summary(dia.est, conf.int = TRUE)
+test2
+
+# These are the exp estimates
+dia.forestplot <- cbind(test2$term, exp(test2$estimate), exp(test2$`2.5 %`), exp(test2$`97.5 %`))
+# Insert reference rows
+dia.forestplot <- rbind(c("GPA", 0,0,0), dia.forestplot)
+new_mat2 <- matrix(0,nrow=5,ncol=4)  
+new_mat2[-4,] <-dia.forestplot 
+dia.forestplot  <- new_mat2
+dia.forestplot[,1] <- c("GPA", "MPA", "Age", "Female", "Male")
+dia.forestplot
+
+# Retrieve AIC from all 10 models
+mean_dia_avg <- mean(c(AIC(dia_cox1),
+AIC(dia_cox2),
+AIC(dia_cox3),
+AIC(dia_cox4),
+AIC(dia_cox5),
+AIC(dia_cox6),
+AIC(dia_cox7),
+AIC(dia_cox8),
+AIC(dia_cox9),
+AIC(dia_cox10)))
+
+# Relevel data
+# We relevel so that the benignest anca is reference in all frames
+imp.clust.1$anca <- relevel(imp.clust.1$anca, ref = "3")
+imp.clust.2$anca <- relevel(imp.clust.2$anca, ref = "3")
+imp.clust.3$anca <- relevel(imp.clust.3$anca, ref = "3")
+imp.clust.4$anca <- relevel(imp.clust.4$anca, ref = "3")
+imp.clust.5$anca <- relevel(imp.clust.5$anca, ref = "3")
+imp.clust.6$anca <- relevel(imp.clust.6$anca, ref = "3")
+imp.clust.7$anca <- relevel(imp.clust.7$anca, ref = "3")
+imp.clust.8$anca <- relevel(imp.clust.8$anca, ref = "3")
+imp.clust.9$anca <- relevel(imp.clust.9$anca, ref = "3")
+imp.clust.10$anca <- relevel(imp.clust.10$anca, ref = "3")
+
+
+# We run 10 Cox regressions over the sets
+anca_cox1 <- coxph(Surv(timeoffollowup, death) ~ anca+age+gender, data = imp.clust.1)
+anca_cox2 <- coxph(Surv(timeoffollowup, death) ~ anca+age+gender, data = imp.clust.2)
+anca_cox3 <- coxph(Surv(timeoffollowup, death) ~ anca+age+gender, data = imp.clust.3)
+anca_cox4 <- coxph(Surv(timeoffollowup, death) ~ anca+age+gender, data = imp.clust.4)
+anca_cox5 <- coxph(Surv(timeoffollowup, death) ~ anca+age+gender, data = imp.clust.5)
+anca_cox6 <- coxph(Surv(timeoffollowup, death) ~ anca+age+gender, data = imp.clust.6)
+anca_cox7 <- coxph(Surv(timeoffollowup, death) ~ anca+age+gender, data = imp.clust.7)
+anca_cox8 <- coxph(Surv(timeoffollowup, death) ~ anca+age+gender, data = imp.clust.8)
+anca_cox9 <- coxph(Surv(timeoffollowup, death) ~ anca+age+gender, data = imp.clust.9)
+anca_cox10 <- coxph(Surv(timeoffollowup, death) ~ anca+age+gender, data = imp.clust.10)
+
+# We summarize the pooled estimates
+anca.fitlist <- list(anca_cox1, anca_cox2, anca_cox3, anca_cox4, anca_cox5, anca_cox6, anca_cox7, anca_cox8, anca_cox9, anca_cox10)
+anca.est <- pool(as.mira(anca.fitlist))
+test3 <- summary(anca.est, conf.int = TRUE)
+test3
+
+# These are the exp estimates
+anca.forestplot <- cbind(test3$term, exp(test3$estimate), exp(test3$`2.5 %`), exp(test3$`97.5 %`))
+# Insert reference rows
+anca.forestplot <- rbind(c("PR3", 0,0,0), anca.forestplot)
+new_mat3 <- matrix(0,nrow=6,ncol=4)  
+new_mat3[-5,] <-anca.forestplot 
+anca.forestplot  <- new_mat3
+anca.forestplot[,1] <- c("PR3", "ANCA negative","MPO", "Age", "Female", "Male")
+anca.forestplot
+
+# Retrieve AIC from all 10 models
+mean_anca_avg <- mean(c(AIC(anca_cox1),
+AIC(anca_cox2),
+AIC(anca_cox3),
+AIC(anca_cox4),
+AIC(anca_cox5),
+AIC(anca_cox6),
+AIC(anca_cox7),
+AIC(anca_cox8),
+AIC(anca_cox9),
+AIC(anca_cox10)))
+
+# We run 10 Cox regressions over the sets for Mahr class
+mahr_cox1 <- coxph(Surv(timeoffollowup, death) ~ mahr_class+age+gender, data = imp.clust.1)
+mahr_cox2 <- coxph(Surv(timeoffollowup, death) ~ mahr_class+age+gender, data = imp.clust.2)
+mahr_cox3 <- coxph(Surv(timeoffollowup, death) ~ mahr_class+age+gender, data = imp.clust.3)
+mahr_cox4 <- coxph(Surv(timeoffollowup, death) ~ mahr_class+age+gender, data = imp.clust.4)
+mahr_cox5 <- coxph(Surv(timeoffollowup, death) ~ mahr_class+age+gender, data = imp.clust.5)
+mahr_cox6 <- coxph(Surv(timeoffollowup, death) ~ mahr_class+age+gender, data = imp.clust.6)
+mahr_cox7 <- coxph(Surv(timeoffollowup, death) ~ mahr_class+age+gender, data = imp.clust.7)
+mahr_cox8 <- coxph(Surv(timeoffollowup, death) ~ mahr_class+age+gender, data = imp.clust.8)
+mahr_cox9 <- coxph(Surv(timeoffollowup, death) ~ mahr_class+age+gender, data = imp.clust.9)
+mahr_cox10 <- coxph(Surv(timeoffollowup, death) ~ mahr_class+age+gender, data = imp.clust.10)
+
+
+# We summarize the pooled estimates
+mahr.fitlist <- list(mahr_cox1, mahr_cox2, mahr_cox3, mahr_cox4, mahr_cox5, mahr_cox6, mahr_cox7, mahr_cox8, mahr_cox9, mahr_cox10)
+mahr.est <- pool(as.mira(mahr.fitlist))
+test4 <- summary(mahr.est, conf.int = TRUE)
+test4
+
+
+# These are the exp estimates
+mahr.forestplot <- cbind(test4$term, exp(test4$estimate), exp(test4$`2.5 %`), exp(test4$`97.5 %`))
+# Insert reference rows
+mahr.forestplot <- rbind(c("CV AAV", 0,0,0), mahr.forestplot)
+new_mat <- matrix(0,nrow=8,ncol=4)  
+new_mat[-7,] <- mahr.forestplot
+mahr.forestplot  <- new_mat
+mahr.forestplot[,1] <- c("CV AAV", "GI AAV", "Non-renal AAV", "Renal AAV with PR3-ANCA", "Renal AAV with PR3-ANCA", "Age", "Female", "Male")
+mahr.forestplot
+
+# Retrieve AIC from all 10 models
+mean_mahr_avg <- mean(c(AIC(mahr_cox1),
+AIC(mahr_cox2),
+AIC(mahr_cox3),
+AIC(mahr_cox4),
+AIC(mahr_cox5),
+AIC(mahr_cox6),
+AIC(mahr_cox7),
+AIC(mahr_cox8),
+AIC(mahr_cox9),
+AIC(mahr_cox10)))
+
+# AIC for the models
+mean_cl_avg
+mean_dia_avg
+mean_anca_avg
+mean_mahr_avg
+
+# Our clustering model is significantly better! 
+mean_dia_avg-mean_cl_avg
+mean_anca_avg-mean_cl_avg
+mean_mahr_avg-mean_cl_avg
+
+```
+
+### We run pooled outcome analysis - adjust for registry
+```{r}
+# We relevel so that the benignest cluster is reference in all frames
+imp.clust.1$cluster <- relevel(imp.clust.1$cluster, ref = "1")
+imp.clust.2$cluster <- relevel(imp.clust.2$cluster, ref = "1")
+imp.clust.3$cluster <- relevel(imp.clust.3$cluster, ref = "1")
+imp.clust.4$cluster <- relevel(imp.clust.4$cluster, ref = "1")
+imp.clust.5$cluster <- relevel(imp.clust.5$cluster, ref = "1")
+imp.clust.6$cluster <- relevel(imp.clust.6$cluster, ref = "1")
+imp.clust.7$cluster <- relevel(imp.clust.7$cluster, ref = "1")
+imp.clust.8$cluster <- relevel(imp.clust.8$cluster, ref = "1")
+imp.clust.9$cluster <- relevel(imp.clust.9$cluster, ref = "1")
+imp.clust.10$cluster <- relevel(imp.clust.10$cluster, ref = "1")
+
+# We run 10 Cox regressions over the sets
+cl_cox1 <- coxph(Surv(timeoffollowup, death) ~ cluster+age+gender+registry, data = imp.clust.1)
+cl_cox2 <- coxph(Surv(timeoffollowup, death) ~ cluster+age+gender+registry, data = imp.clust.2)
+cl_cox3 <- coxph(Surv(timeoffollowup, death) ~ cluster+age+gender+registry, data = imp.clust.3)
+cl_cox4 <- coxph(Surv(timeoffollowup, death) ~ cluster+age+gender+registry, data = imp.clust.4)
+cl_cox5 <- coxph(Surv(timeoffollowup, death) ~ cluster+age+gender+registry, data = imp.clust.5)
+cl_cox6 <- coxph(Surv(timeoffollowup, death) ~ cluster+age+gender+registry, data = imp.clust.6)
+cl_cox7 <- coxph(Surv(timeoffollowup, death) ~ cluster+age+gender+registry, data = imp.clust.7)
+cl_cox8 <- coxph(Surv(timeoffollowup, death) ~ cluster+age+gender+registry, data = imp.clust.8)
+cl_cox9 <- coxph(Surv(timeoffollowup, death) ~ cluster+age+gender+registry, data = imp.clust.9)
+cl_cox10 <- coxph(Surv(timeoffollowup, death) ~ cluster+age+gender+registry, data = imp.clust.10)
+
+# We summarize the pooled estimates
+cl.fitlist <- list(cl_cox1, cl_cox2, cl_cox3, cl_cox4, cl_cox5, cl_cox6, cl_cox7, cl_cox8, cl_cox9, cl_cox10)
+cl.est <- pool(as.mira(cl.fitlist))
+test <- summary(cl.est, conf.int = TRUE)
+test
+
+# These are the exp estimates
+cl.forestplot <- cbind(test$term, exp(test$estimate), exp(test$`2.5 %`), exp(test$`97.5 %`))
+# Insert reference rows
+cl.forestplot <- rbind(c("Cluster 1", 0,0,0), cl.forestplot)
+new_mat <- matrix(0,nrow=14,ncol=4)  
+new_mat[-c(7,9),] <-cl.forestplot 
+cl.forestplot  <- new_mat
+cl.forestplot[,1] <- c("Cluster 1", "Cluster 2", "Cluster 3", "Cluster 4", "Cluster 5", "Age", "Female", "Male", "Czech", "FVSG", "GeVas", "POLVAS", "RKD", "Skåne")
+cl.forestplot
+
+# Retrieve AIC from all 10 models
+mean_cl_avg <- mean(c(AIC(cl_cox1),
+AIC(cl_cox2),
+AIC(cl_cox3),
+AIC(cl_cox4),
+AIC(cl_cox5),
+AIC(cl_cox6),
+AIC(cl_cox7),
+AIC(cl_cox8),
+AIC(cl_cox9),
+AIC(cl_cox10)))
+
+
+# We run 10 Cox regressions over the sets
+dia_cox1 <- coxph(Surv(timeoffollowup, death) ~ maindiagnosis+age+gender+registry, data = imp.clust.1)
+dia_cox2 <- coxph(Surv(timeoffollowup, death) ~ maindiagnosis+age+gender+registry, data = imp.clust.2)
+dia_cox3 <- coxph(Surv(timeoffollowup, death) ~ maindiagnosis+age+gender+registry, data = imp.clust.3)
+dia_cox4 <- coxph(Surv(timeoffollowup, death) ~ maindiagnosis+age+gender+registry, data = imp.clust.4)
+dia_cox5 <- coxph(Surv(timeoffollowup, death) ~ maindiagnosis+age+gender+registry, data = imp.clust.5)
+dia_cox6 <- coxph(Surv(timeoffollowup, death) ~ maindiagnosis+age+gender+registry, data = imp.clust.6)
+dia_cox7 <- coxph(Surv(timeoffollowup, death) ~ maindiagnosis+age+gender+registry, data = imp.clust.7)
+dia_cox8 <- coxph(Surv(timeoffollowup, death) ~ maindiagnosis+age+gender+registry, data = imp.clust.8)
+dia_cox9 <- coxph(Surv(timeoffollowup, death) ~ maindiagnosis+age+gender+registry, data = imp.clust.9)
+dia_cox10 <- coxph(Surv(timeoffollowup, death) ~ maindiagnosis+age+gender+registry, data = imp.clust.10)
+
+# We summarize the pooled estimates
+dia.fitlist <- list(dia_cox1, dia_cox2, dia_cox3, dia_cox4, dia_cox5, dia_cox6, dia_cox7, dia_cox8, dia_cox9, dia_cox10)
+dia.est <- pool(as.mira(dia.fitlist))
+test2 <- summary(dia.est, conf.int = TRUE)
+test2
+
+# These are the exp estimates
+dia.forestplot <- cbind(test2$term, exp(test2$estimate), exp(test2$`2.5 %`), exp(test2$`97.5 %`))
+# Insert reference rows
+dia.forestplot <- rbind(c("GPA", 0,0,0), dia.forestplot)
+new_mat2 <- matrix(0,nrow=11,ncol=4)  
+new_mat2[-c(4,6),] <-dia.forestplot 
+dia.forestplot  <- new_mat2
+dia.forestplot[,1] <- c("GPA", "MPA", "Age", "Female", "Male", "Czech", "FVSG", "GeVas", "POLVAS", "RKD", "Skåne")
+dia.forestplot
+
+
+# Retrieve AIC from all 10 models
+mean_dia_avg <- mean(c(AIC(dia_cox1),
+AIC(dia_cox2),
+AIC(dia_cox3),
+AIC(dia_cox4),
+AIC(dia_cox5),
+AIC(dia_cox6),
+AIC(dia_cox7),
+AIC(dia_cox8),
+AIC(dia_cox9),
+AIC(dia_cox10)))
+
+# Relevel data
+# We relevel so that the benignest anca is reference in all frames
+imp.clust.1$anca <- relevel(imp.clust.1$anca, ref = "3")
+imp.clust.2$anca <- relevel(imp.clust.2$anca, ref = "3")
+imp.clust.3$anca <- relevel(imp.clust.3$anca, ref = "3")
+imp.clust.4$anca <- relevel(imp.clust.4$anca, ref = "3")
+imp.clust.5$anca <- relevel(imp.clust.5$anca, ref = "3")
+imp.clust.6$anca <- relevel(imp.clust.6$anca, ref = "3")
+imp.clust.7$anca <- relevel(imp.clust.7$anca, ref = "3")
+imp.clust.8$anca <- relevel(imp.clust.8$anca, ref = "3")
+imp.clust.9$anca <- relevel(imp.clust.9$anca, ref = "3")
+imp.clust.10$anca <- relevel(imp.clust.10$anca, ref = "3")
+
+# We run 10 Cox regressions over the sets
+anca_cox1 <- coxph(Surv(timeoffollowup, death) ~ anca+age+gender+registry, data = imp.clust.1)
+anca_cox2 <- coxph(Surv(timeoffollowup, death) ~ anca+age+gender+registry, data = imp.clust.2)
+anca_cox3 <- coxph(Surv(timeoffollowup, death) ~ anca+age+gender+registry, data = imp.clust.3)
+anca_cox4 <- coxph(Surv(timeoffollowup, death) ~ anca+age+gender+registry, data = imp.clust.4)
+anca_cox5 <- coxph(Surv(timeoffollowup, death) ~ anca+age+gender+registry, data = imp.clust.5)
+anca_cox6 <- coxph(Surv(timeoffollowup, death) ~ anca+age+gender+registry, data = imp.clust.6)
+anca_cox7 <- coxph(Surv(timeoffollowup, death) ~ anca+age+gender+registry, data = imp.clust.7)
+anca_cox8 <- coxph(Surv(timeoffollowup, death) ~ anca+age+gender+registry, data = imp.clust.8)
+anca_cox9 <- coxph(Surv(timeoffollowup, death) ~ anca+age+gender+registry, data = imp.clust.9)
+anca_cox10 <- coxph(Surv(timeoffollowup, death) ~ anca+age+gender+registry, data = imp.clust.10)
+
+# We summarize the pooled estimates
+anca.fitlist <- list(anca_cox1, anca_cox2, anca_cox3, anca_cox4, anca_cox5, anca_cox6, anca_cox7, anca_cox8, anca_cox9, anca_cox10)
+anca.est <- pool(as.mira(anca.fitlist))
+test3 <- summary(anca.est, conf.int = TRUE)
+test3
+
+# These are the exp estimates
+anca.forestplot <- cbind(test3$term, exp(test3$estimate), exp(test3$`2.5 %`), exp(test3$`97.5 %`))
+# Insert reference rows
+anca.forestplot <- rbind(c("PR3", 0,0,0), anca.forestplot)
+new_mat3 <- matrix(0,nrow=12,ncol=4)  
+new_mat3[-c(5,7),] <-anca.forestplot 
+anca.forestplot  <- new_mat3
+anca.forestplot[,1] <- c("PR3", "ANCA negative","MPO", "Age", "Female", "Male", "Czech", "FVSG", "GeVas", "POLVAS", "RKD", "Skåne")
+anca.forestplot
+
+# Retrieve AIC from all 10 models
+mean_anca_avg <- mean(c(AIC(anca_cox1),
+AIC(anca_cox2),
+AIC(anca_cox3),
+AIC(anca_cox4),
+AIC(anca_cox5),
+AIC(anca_cox6),
+AIC(anca_cox7),
+AIC(anca_cox8),
+AIC(anca_cox9),
+AIC(anca_cox10)))
+
+### We do the same using the Mahr class
+imp.clust.1$mahr_class <- relevel(imp.clust.1$mahr_class, ref = "Non-renal AAV")
+imp.clust.2$mahr_class <- relevel(imp.clust.2$mahr_class, ref = "Non-renal AAV")
+imp.clust.3$mahr_class <- relevel(imp.clust.3$mahr_class, ref = "Non-renal AAV")
+imp.clust.4$mahr_class <- relevel(imp.clust.4$mahr_class, ref = "Non-renal AAV")
+imp.clust.5$mahr_class <- relevel(imp.clust.5$mahr_class, ref = "Non-renal AAV")
+imp.clust.6$mahr_class <- relevel(imp.clust.6$mahr_class, ref = "Non-renal AAV")
+imp.clust.7$mahr_class<- relevel(imp.clust.7$mahr_class, ref = "Non-renal AAV")
+imp.clust.8$mahr_class <- relevel(imp.clust.8$mahr_class, ref = "Non-renal AAV")
+imp.clust.9$mahr_class <- relevel(imp.clust.9$mahr_class, ref = "Non-renal AAV")
+imp.clust.10$mahr_class <- relevel(imp.clust.10$mahr_class, ref = "Non-renal AAV")
+
+
+# We run 10 Cox regressions over the sets
+mahr_cox1 <- coxph(Surv(timeoffollowup, death) ~ mahr_class+age+gender+registry, data = imp.clust.1)
+mahr_cox2 <- coxph(Surv(timeoffollowup, death) ~ mahr_class+age+gender+registry, data = imp.clust.2)
+mahr_cox3 <- coxph(Surv(timeoffollowup, death) ~ mahr_class+age+gender+registry, data = imp.clust.3)
+mahr_cox4 <- coxph(Surv(timeoffollowup, death) ~ mahr_class+age+gender+registry, data = imp.clust.4)
+mahr_cox5 <- coxph(Surv(timeoffollowup, death) ~ mahr_class+age+gender+registry, data = imp.clust.5)
+mahr_cox6 <- coxph(Surv(timeoffollowup, death) ~ mahr_class+age+gender+registry, data = imp.clust.6)
+mahr_cox7 <- coxph(Surv(timeoffollowup, death) ~ mahr_class+age+gender+registry, data = imp.clust.7)
+mahr_cox8 <- coxph(Surv(timeoffollowup, death) ~ mahr_class+age+gender+registry, data = imp.clust.8)
+mahr_cox9 <- coxph(Surv(timeoffollowup, death) ~ mahr_class+age+gender+registry, data = imp.clust.9)
+mahr_cox10 <- coxph(Surv(timeoffollowup, death) ~ mahr_class+age+gender+registry, data = imp.clust.10)
+
+# We summarize the pooled estimates
+mahr.fitlist <- list(mahr_cox1, mahr_cox2, mahr_cox3, mahr_cox4, mahr_cox5, mahr_cox6, mahr_cox7, mahr_cox8, mahr_cox9, mahr_cox10)
+mahr.est <- pool(as.mira(mahr.fitlist))
+test4 <- summary(mahr.est, conf.int = TRUE)
+test4
+
+# These are the exp estimates
+mahr.forestplot <- cbind(test4$term, exp(test4$estimate), exp(test4$`2.5 %`), exp(test4$`97.5 %`))
+# Insert reference rows
+mahr.forestplot <- rbind(c("Non-renal AAV", 0,0,0), mahr.forestplot)
+new_mat <- matrix(0,nrow=14,ncol=4)  
+new_mat[-c(7,9),] <-mahr.forestplot 
+mahr.forestplot  <- new_mat
+mahr.forestplot[,1] <- c("Non-renal AAV", "CV AAV", "GI AAV", "Renal AAV with PR3-ANCA", "Renal AAV with PR3-ANCA", "Age", "Female", "Male", "Czech", "FVSG", "GeVas", "POLVAS", "RKD", "Skåne")
+mahr.forestplot
+
+# Retrieve AIC from all 10 models
+mean_mahr_avg <- mean(c(AIC(mahr_cox1),
+AIC(mahr_cox2),
+AIC(mahr_cox3),
+AIC(mahr_cox4),
+AIC(mahr_cox5),
+AIC(mahr_cox6),
+AIC(mahr_cox7),
+AIC(mahr_cox8),
+AIC(mahr_cox9),
+AIC(mahr_cox10)))
+
+# AIC for the models
+mean_cl_avg
+mean_dia_avg
+mean_anca_avg
+mean_mahr_avg
+
+# Our clustering model is significantly better! 
+mean_dia_avg-mean_cl_avg
+mean_anca_avg-mean_cl_avg
+mean_mahr_avg-mean_cl_avg
+
+```
+
+### Fix censor variables for competing risks ESKD outcome
+```{r}
+# We change death to 1/2 instead of TRUE/FALSE
+imp.clust.1 <- imp.clust.1 %>%
+  mutate(eskd = case_when(eskd == TRUE ~ 1,
+                           eskd == FALSE ~0))
+
+imp.clust.2 <- imp.clust.2 %>%
+  mutate(eskd = case_when(eskd == TRUE ~ 1,
+                           eskd == FALSE ~0))
+
+imp.clust.3 <- imp.clust.3 %>%
+  mutate(eskd = case_when(eskd == TRUE ~ 1,
+                           eskd == FALSE ~0))
+
+imp.clust.4 <- imp.clust.4 %>%
+  mutate(eskd = case_when(eskd == TRUE ~ 1,
+                           eskd == FALSE ~0))
+
+imp.clust.5 <- imp.clust.5 %>%
+  mutate(eskd = case_when(eskd == TRUE ~ 1,
+                           eskd == FALSE ~0))
+
+imp.clust.6 <- imp.clust.6 %>%
+  mutate(eskd = case_when(eskd == TRUE ~ 1,
+                           eskd == FALSE ~0))
+
+imp.clust.7 <- imp.clust.7 %>%
+  mutate(eskd = case_when(eskd == TRUE ~ 1,
+                           eskd == FALSE ~0))
+
+imp.clust.8 <- imp.clust.8 %>%
+  mutate(eskd = case_when(eskd == TRUE ~ 1,
+                           eskd == FALSE ~0))
+
+imp.clust.9 <- imp.clust.9 %>%
+  mutate(eskd = case_when(eskd == TRUE ~ 1,
+                           eskd == FALSE ~0))
+
+imp.clust.10 <- imp.clust.10 %>%
+  mutate(eskd = case_when(eskd == TRUE ~ 1,
+                           eskd == FALSE ~0))
+
+
+
+
+# We change death to 0/1 instead of 1/2
+imp.clust.1 <- imp.clust.1 %>%
+  mutate(death = case_when(death == 2 ~ 1,
+                           death == 1 ~ 0))
+
+imp.clust.2 <- imp.clust.2 %>%
+  mutate(death = case_when(death == 2 ~ 1,
+                           death == 1 ~0))
+
+imp.clust.3 <- imp.clust.3 %>%
+  mutate(death = case_when(death == 2 ~ 1,
+                           death == 1 ~0))
+
+imp.clust.4 <- imp.clust.4 %>%
+  mutate(death = case_when(death == 2 ~ 1,
+                           death == 1 ~0))
+
+imp.clust.5 <- imp.clust.5 %>%
+  mutate(death = case_when(death == 2 ~ 1,
+                           death == 1 ~0))
+
+imp.clust.6 <- imp.clust.6 %>%
+  mutate(death = case_when(death == 2 ~ 1,
+                           death == 1 ~0))
+
+imp.clust.7 <- imp.clust.7 %>%
+  mutate(death = case_when(death == 2 ~ 1,
+                           death == 1 ~ 0))
+
+imp.clust.8 <- imp.clust.8 %>%
+  mutate(death = case_when(death == 2 ~ 1,
+                           death == 1 ~0))
+
+imp.clust.9 <- imp.clust.9 %>%
+  mutate(death = case_when(death == 2 ~ 1,
+                           death == 1 ~ 0))
+
+imp.clust.10 <- imp.clust.10 %>%
+  mutate(death = case_when(death == 2 ~ 1,
+                           death == 1 ~ 0))
+
+# We need ti exclude POLVAS from all ESKD analysis 
+imp.clust.1 <- imp.clust.1 %>%
+  filter(registry != "Polvas") %>%
+  droplevels()
+
+imp.clust.2 <- imp.clust.2 %>%
+  filter(registry != "Polvas") %>%
+  droplevels()
+
+imp.clust.3 <- imp.clust.3 %>%
+  filter(registry != "Polvas") %>%
+  droplevels()
+
+imp.clust.4 <- imp.clust.4 %>%
+  filter(registry != "Polvas") %>%
+  droplevels()
+
+imp.clust.5 <- imp.clust.5 %>%
+  filter(registry != "Polvas") %>%
+  droplevels()
+
+imp.clust.6 <- imp.clust.6 %>%
+  filter(registry != "Polvas") %>%
+  droplevels()
+
+imp.clust.7 <- imp.clust.7 %>%
+  filter(registry != "Polvas") %>%
+  droplevels()
+
+imp.clust.8 <- imp.clust.8 %>%
+  filter(registry != "Polvas") %>%
+  droplevels()
+
+imp.clust.9 <- imp.clust.9 %>%
+  filter(registry != "Polvas") %>%
+  droplevels()
+
+imp.clust.10 <- imp.clust.10 %>%
+  filter(registry != "Polvas") %>%
+  droplevels()
+
+
+```
+
+### We run pooled outcome analysis - ESKD
+```{r}
+# We relevel so that the benignest cluster is reference in all frames
+imp.clust.1$cluster <- relevel(imp.clust.1$cluster, ref = "1")
+imp.clust.2$cluster <- relevel(imp.clust.2$cluster, ref = "1")
+imp.clust.3$cluster <- relevel(imp.clust.3$cluster, ref = "1")
+imp.clust.4$cluster <- relevel(imp.clust.4$cluster, ref = "1")
+imp.clust.5$cluster <- relevel(imp.clust.5$cluster, ref = "1")
+imp.clust.6$cluster <- relevel(imp.clust.6$cluster, ref = "1")
+imp.clust.7$cluster <- relevel(imp.clust.7$cluster, ref = "1")
+imp.clust.8$cluster <- relevel(imp.clust.8$cluster, ref = "1")
+imp.clust.9$cluster <- relevel(imp.clust.9$cluster, ref = "1")
+imp.clust.10$cluster <- relevel(imp.clust.10$cluster, ref = "1")
+
+# Run 10 Fine-Gray models - cluster affiliation
+
+# 1
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.1, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.1, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.1)
+fgfit1 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ cluster + age + gender,
+weight=fgwt, data=pdata)
+
+# 2
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.2, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.2, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.2)
+fgfit2 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ cluster + age + gender,
+weight=fgwt, data=pdata)
+
+# 3
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.3, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.3, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.3)
+fgfit3 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ cluster + age + gender,
+weight=fgwt, data=pdata)
+
+# 4
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.4, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.4, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.4)
+fgfit4 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ cluster + age + gender,
+weight=fgwt, data=pdata)
+
+# 5
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.5, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.5, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.5)
+fgfit5 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ cluster + age + gender,
+weight=fgwt, data=pdata)
+
+# 6
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.6, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.6, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.6)
+fgfit6 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ cluster + age + gender,
+weight=fgwt, data=pdata)
+
+# 7
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.7, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.7, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.7)
+fgfit7 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ cluster + age + gender,
+weight=fgwt, data=pdata)
+
+# 8
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.8, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.8, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.8)
+fgfit8 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ cluster + age + gender,
+weight=fgwt, data=pdata)
+
+# 9
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.9, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.9, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.9)
+fgfit9 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ cluster + age + gender,
+weight=fgwt, data=pdata)
+
+# 10
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.10, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.10, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.10)
+fgfit10 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ cluster + age + gender,
+weight=fgwt, data=pdata)
+
+# We summarize the pooled estimates
+cleskd.fitlist <- list(fgfit1, fgfit2, fgfit3, fgfit4, fgfit5, fgfit6, fgfit7, fgfit8, fgfit9, fgfit10)
+cleskd.est <- pool(as.mira(cleskd.fitlist))
+test_eskd <- summary(cleskd.est, conf.int = TRUE)
+test_eskd
+
+# These are the exp estimates
+cleskd.forestplot <- cbind(test_eskd$term, exp(test_eskd$estimate), exp(test_eskd$`2.5 %`), exp(test_eskd$`97.5 %`))
+
+# Insert reference rows
+cleskd.forestplot <- rbind(c("Cluster 1", 0,0,0), cleskd.forestplot)
+new_mat <- matrix(0,nrow=8,ncol=4)  
+new_mat[-7,] <-cleskd.forestplot 
+cleskd.forestplot  <- new_mat
+cleskd.forestplot[,1] <- c("Cluster 1", "Cluster 2", "Cluster 3", "Cluster 4", "Cluster 5", "Age", "Female", "Male")
+cleskd.forestplot
+
+# Retrieve AIC from all 10 models
+mean_cleskd_avg <- mean(c(AIC(fgfit1),
+AIC(fgfit2),
+AIC(fgfit3),
+AIC(fgfit4),
+AIC(fgfit5),
+AIC(fgfit6),
+AIC(fgfit7),
+AIC(fgfit8),
+AIC(fgfit9),
+AIC(fgfit10)))
+
+
+
+# Run 10 Fine-Gray models - diagnosis affiliation
+
+# 1
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.1, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.1, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.1)
+fgfit1 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ maindiagnosis + age + gender,
+weight=fgwt, data=pdata)
+
+# 2
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.2, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.2, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.2)
+fgfit2 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ maindiagnosis + age + gender,
+weight=fgwt, data=pdata)
+
+# 3
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.3, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.3, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.3)
+fgfit3 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ maindiagnosis + age + gender,
+weight=fgwt, data=pdata)
+
+# 4
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.4, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.4, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.4)
+fgfit4 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ maindiagnosis + age + gender,
+weight=fgwt, data=pdata)
+
+# 5
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.5, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.5, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.5)
+fgfit5 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ maindiagnosis + age + gender,
+weight=fgwt, data=pdata)
+
+# 6
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.6, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.6, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.6)
+fgfit6 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ maindiagnosis + age + gender,
+weight=fgwt, data=pdata)
+
+# 7
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.7, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.7, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.7)
+fgfit7 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ maindiagnosis + age + gender,
+weight=fgwt, data=pdata)
+
+# 8
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.8, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.8, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.8)
+fgfit8 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ maindiagnosis + age + gender,
+weight=fgwt, data=pdata)
+
+# 9
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.9, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.9, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.9)
+fgfit9 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ maindiagnosis + age + gender,
+weight=fgwt, data=pdata)
+
+# 10
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.10, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.10, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.10)
+fgfit10 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ maindiagnosis + age + gender,
+weight=fgwt, data=pdata)
+
+# We summarize the pooled estimates
+diaeskd.fitlist <- list(fgfit1, fgfit2, fgfit3, fgfit4, fgfit5, fgfit6, fgfit7, fgfit8, fgfit9, fgfit10)
+diaeskd.est <- pool(as.mira(diaeskd.fitlist))
+test_eskd2 <- summary(diaeskd.est, conf.int = TRUE)
+test_eskd2
+
+# These are the exp estimates
+diaeskd.forestplot <- cbind(test_eskd2$term, exp(test_eskd2$estimate), exp(test_eskd2$`2.5 %`), exp(test_eskd2$`97.5 %`))
+# Insert reference rows
+diaeskd.forestplot <- rbind(c("GPA", 0,0,0), diaeskd.forestplot)
+new_mat2 <- matrix(0,nrow=5,ncol=4)  
+new_mat2[-4,] <-diaeskd.forestplot 
+diaeskd.forestplot  <- new_mat2
+diaeskd.forestplot[,1] <- c("GPA", "MPA", "Age", "Female", "Male")
+diaeskd.forestplot
+
+# Retrieve AIC from all 10 models
+mean_dia_eskd_avg <- mean(c(AIC(fgfit1),
+AIC(fgfit2),
+AIC(fgfit3),
+AIC(fgfit4),
+AIC(fgfit5),
+AIC(fgfit6),
+AIC(fgfit7),
+AIC(fgfit8),
+AIC(fgfit9),
+AIC(fgfit10)))
+
+
+# Relevel data
+# We relevel so that the benignest anca is reference in all frames
+imp.clust.1$anca <- relevel(imp.clust.1$anca, ref = "3")
+imp.clust.2$anca <- relevel(imp.clust.2$anca, ref = "3")
+imp.clust.3$anca <- relevel(imp.clust.3$anca, ref = "3")
+imp.clust.4$anca <- relevel(imp.clust.4$anca, ref = "3")
+imp.clust.5$anca <- relevel(imp.clust.5$anca, ref = "3")
+imp.clust.6$anca <- relevel(imp.clust.6$anca, ref = "3")
+imp.clust.7$anca <- relevel(imp.clust.7$anca, ref = "3")
+imp.clust.8$anca <- relevel(imp.clust.8$anca, ref = "3")
+imp.clust.9$anca <- relevel(imp.clust.9$anca, ref = "3")
+imp.clust.10$anca <- relevel(imp.clust.10$anca, ref = "3")
+
+# Run 10 Fine-Gray models - ANCA affiliation
+
+# 1
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.1, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.1, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.1)
+fgfit1 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ anca + age + gender,
+weight=fgwt, data=pdata)
+
+# 2
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.2, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.2, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.2)
+fgfit2 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ anca + age + gender,
+weight=fgwt, data=pdata)
+
+# 3
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.3, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.3, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.3)
+fgfit3 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ anca + age + gender,
+weight=fgwt, data=pdata)
+
+# 4
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.4, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.4, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.4)
+fgfit4 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ anca + age + gender,
+weight=fgwt, data=pdata)
+
+# 5
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.5, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.5, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.5)
+fgfit5 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ anca + age + gender,
+weight=fgwt, data=pdata)
+
+# 6
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.6, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.6, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.6)
+fgfit6 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ anca + age + gender,
+weight=fgwt, data=pdata)
+
+# 7
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.7, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.7, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.7)
+fgfit7 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ anca + age + gender,
+weight=fgwt, data=pdata)
+
+# 8
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.8, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.8, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.8)
+fgfit8 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ anca + age + gender,
+weight=fgwt, data=pdata)
+
+# 9
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.9, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.9, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.9)
+fgfit9 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ anca + age + gender,
+weight=fgwt, data=pdata)
+
+# 10
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.10, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.10, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.10)
+fgfit10 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ anca + age + gender,
+weight=fgwt, data=pdata)
+
+# We summarize the pooled estimates
+ancaeskd.fitlist <- list(fgfit1, fgfit2, fgfit3, fgfit4, fgfit5, fgfit6, fgfit7, fgfit8, fgfit9, fgfit10)
+ancaeskd.est <- pool(as.mira(ancaeskd.fitlist))
+test_eskd3 <- summary(ancaeskd.est, conf.int = TRUE)
+test_eskd3
+
+# These are the exp estimates
+ancaeskd.forestplot <- cbind(test_eskd3$term, exp(test_eskd3$estimate), exp(test_eskd3$`2.5 %`), exp(test_eskd3$`97.5 %`))
+# Insert reference rows
+ancaeskd.forestplot <- rbind(c("PR3", 0,0,0), ancaeskd.forestplot)
+new_mat3 <- matrix(0,nrow=6,ncol=4)  
+new_mat3[-5,] <-ancaeskd.forestplot 
+ancaeskd.forestplot  <- new_mat3
+ancaeskd.forestplot[,1] <- c("PR3", "ANCA negative","MPO", "Age", "Female", "Male")
+ancaeskd.forestplot
+
+# Retrieve AIC from all 10 models
+mean_ancaeskd_avg <- mean(c(AIC(fgfit1),
+AIC(fgfit2),
+AIC(fgfit3),
+AIC(fgfit4),
+AIC(fgfit5),
+AIC(fgfit6),
+AIC(fgfit7),
+AIC(fgfit8),
+AIC(fgfit9),
+AIC(fgfit10)))
+
+
+# 1
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.1, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.1, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.1)
+fgfit1 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ mahr_class + age + gender,
+weight=fgwt, data=pdata)
+
+# 2
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.2, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.2, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.2)
+fgfit2 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ mahr_class + age + gender,
+weight=fgwt, data=pdata)
+
+# 3
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.3, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.3, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.3)
+fgfit3 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ mahr_class + age + gender,
+weight=fgwt, data=pdata)
+
+# 4
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.4, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.4, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.4)
+fgfit4 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ mahr_class + age + gender,
+weight=fgwt, data=pdata)
+
+# 5
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.5, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.5, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.5)
+fgfit5 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ mahr_class + age + gender,
+weight=fgwt, data=pdata)
+
+# 6
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.6, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.6, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.6)
+fgfit6 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ mahr_class + age + gender,
+weight=fgwt, data=pdata)
+
+# 7
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.7, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.7, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.7)
+fgfit7 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ mahr_class + age + gender,
+weight=fgwt, data=pdata)
+
+# 8
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.8, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.8, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.8)
+fgfit8 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ mahr_class + age + gender,
+weight=fgwt, data=pdata)
+
+# 9
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.9, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.9, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.9)
+fgfit9 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ mahr_class + age + gender,
+weight=fgwt, data=pdata)
+
+# 10
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.10, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.10, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.10)
+fgfit10 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ mahr_class + age + gender,
+weight=fgwt, data=pdata)
+
+# We summarize the pooled estimates
+mahreskd.fitlist <- list(fgfit1, fgfit2, fgfit3, fgfit4, fgfit5, fgfit6, fgfit7, fgfit8, fgfit9, fgfit10)
+mahreskd.est <- pool(as.mira(mahreskd.fitlist))
+test_eskd4 <- summary(mahreskd.est, conf.int = TRUE)
+test_eskd4
+
+# These are the exp estimates
+mahreskd.forestplot <- cbind(test_eskd4$term, exp(test_eskd4$estimate), exp(test_eskd4$`2.5 %`), exp(test_eskd4$`97.5 %`))
+
+# Insert reference rows
+mahreskd.forestplot <- rbind(c("CV AAV", 0,0,0), mahreskd.forestplot)
+new_mat <- matrix(0,nrow=8,ncol=4)  
+new_mat[-7,] <- mahreskd.forestplot 
+mahreskd.forestplot  <- new_mat
+mahreskd.forestplot[,1] <- c("CV AAV","GI AAV", "Non-renal AAV", "Renal AAV with PR3-ANCA", "Renal AAV without PR3-ANCA", "Age", "Female", "Male")
+mahreskd.forestplot
+
+# Retrieve AIC from all 10 models
+mean_mahreskd_avg <- mean(c(AIC(fgfit1),
+AIC(fgfit2),
+AIC(fgfit3),
+AIC(fgfit4),
+AIC(fgfit5),
+AIC(fgfit6),
+AIC(fgfit7),
+AIC(fgfit8),
+AIC(fgfit9),
+AIC(fgfit10)))
+
+# AIC for the models
+mean_cleskd_avg
+mean_dia_eskd_avg
+mean_ancaeskd_avg
+mean_mahreskd_avg
+
+# Our clustering model is significantly better! 
+mean_dia_eskd_avg-mean_cleskd_avg
+mean_ancaeskd_avg-mean_cleskd_avg
+mean_mahreskd_avg-mean_cleskd_avg
+```
+
+### We run pooled outcome analysis - ESKD - INCLUDING REGISTRY
+```{r}
+# We relevel so that the benignest cluster is reference in all frames
+imp.clust.1$cluster <- relevel(imp.clust.1$cluster, ref = "1")
+imp.clust.2$cluster <- relevel(imp.clust.2$cluster, ref = "1")
+imp.clust.3$cluster <- relevel(imp.clust.3$cluster, ref = "1")
+imp.clust.4$cluster <- relevel(imp.clust.4$cluster, ref = "1")
+imp.clust.5$cluster <- relevel(imp.clust.5$cluster, ref = "1")
+imp.clust.6$cluster <- relevel(imp.clust.6$cluster, ref = "1")
+imp.clust.7$cluster <- relevel(imp.clust.7$cluster, ref = "1")
+imp.clust.8$cluster <- relevel(imp.clust.8$cluster, ref = "1")
+imp.clust.9$cluster <- relevel(imp.clust.9$cluster, ref = "1")
+imp.clust.10$cluster <- relevel(imp.clust.10$cluster, ref = "1")
+
+# Run 10 Fine-Gray models - cluster affiliation
+
+# 1
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.1, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.1, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.1)
+fgfit1 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ cluster + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# 2
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.2, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.2, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.2)
+fgfit2 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ cluster + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# 3
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.3, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.3, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.3)
+fgfit3 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ cluster + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# 4
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.4, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.4, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.4)
+fgfit4 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ cluster + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# 5
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.5, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.5, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.5)
+fgfit5 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ cluster + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# 6
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.6, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.6, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.6)
+fgfit6 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ cluster + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# 7
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.7, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.7, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.7)
+fgfit7 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ cluster + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# 8
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.8, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.8, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.8)
+fgfit8 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ cluster + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# 9
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.9, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.9, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.9)
+fgfit9 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ cluster + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# 10
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.10, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.10, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.10)
+fgfit10 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ cluster + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# We summarize the pooled estimates
+cleskd.fitlist <- list(fgfit1, fgfit2, fgfit3, fgfit4, fgfit5, fgfit6, fgfit7, fgfit8, fgfit9, fgfit10)
+cleskd.est <- pool(as.mira(cleskd.fitlist))
+test_eskd <- summary(cleskd.est, conf.int = TRUE)
+test_eskd
+
+# These are the exp estimates
+cleskd.forestplot <- cbind(test_eskd$term, exp(test_eskd$estimate), exp(test_eskd$`2.5 %`), exp(test_eskd$`97.5 %`))
+
+# Insert reference rows
+cleskd.forestplot <- rbind(c("Cluster 1", 0,0,0), cleskd.forestplot)
+new_mat <- matrix(0,nrow=13,ncol=4)  
+new_mat[-c(7,9),] <- cleskd.forestplot
+cleskd.forestplot  <- new_mat
+cleskd.forestplot[,1] <- c("Cluster 1", "Cluster 2", "Cluster 3", "Cluster 4", "Cluster 5", "Age", "Female", "Male", "Czech", "FVSG", "GeVas", "RKD", "Skåne")
+cleskd.forestplot
+
+# Retrieve AIC from all 10 models
+mean_cleskd_avg <- mean(c(AIC(fgfit1),
+AIC(fgfit2),
+AIC(fgfit3),
+AIC(fgfit4),
+AIC(fgfit5),
+AIC(fgfit6),
+AIC(fgfit7),
+AIC(fgfit8),
+AIC(fgfit9),
+AIC(fgfit10)))
+
+# Run 10 Fine-Gray models - diagnosis affiliation
+
+# 1
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.1, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.1, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.1)
+fgfit1 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ maindiagnosis + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# 2
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.2, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.2, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.2)
+fgfit2 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ maindiagnosis + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# 3
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.3, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.3, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.3)
+fgfit3 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ maindiagnosis + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# 4
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.4, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.4, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.4)
+fgfit4 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ maindiagnosis + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# 5
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.5, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.5, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.5)
+fgfit5 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ maindiagnosis + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# 6
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.6, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.6, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.6)
+fgfit6 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ maindiagnosis + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# 7
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.7, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.7, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.7)
+fgfit7 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ maindiagnosis + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# 8
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.8, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.8, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.8)
+fgfit8 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ maindiagnosis + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# 9
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.9, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.9, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.9)
+fgfit9 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ maindiagnosis + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# 10
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.10, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.10, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.10)
+fgfit10 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ maindiagnosis + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# We summarize the pooled estimates
+diaeskd.fitlist <- list(fgfit1, fgfit2, fgfit3, fgfit4, fgfit5, fgfit6, fgfit7, fgfit8, fgfit9, fgfit10)
+diaeskd.est <- pool(as.mira(diaeskd.fitlist))
+test_eskd2 <- summary(diaeskd.est, conf.int = TRUE)
+test_eskd2
+
+# These are the exp estimates
+diaeskd.forestplot <- cbind(test_eskd2$term, exp(test_eskd2$estimate), exp(test_eskd2$`2.5 %`), exp(test_eskd2$`97.5 %`))
+# Insert reference rows
+diaeskd.forestplot <- rbind(c("GPA", 0,0,0), diaeskd.forestplot)
+new_mat2 <- matrix(0,nrow=10,ncol=4)  
+new_mat2[-c(4,6),] <-diaeskd.forestplot 
+diaeskd.forestplot  <- new_mat2
+diaeskd.forestplot[,1] <- c("GPA", "MPA", "Age", "Female", "Male", "Czech", "FVSG", "GeVas", "RKD", "Skåne")
+diaeskd.forestplot
+
+# Retrieve AIC from all 10 models
+mean_dia_eskd_avg <- mean(c(AIC(fgfit1),
+AIC(fgfit2),
+AIC(fgfit3),
+AIC(fgfit4),
+AIC(fgfit5),
+AIC(fgfit6),
+AIC(fgfit7),
+AIC(fgfit8),
+AIC(fgfit9),
+AIC(fgfit10)))
+
+
+# Relevel data
+# We relevel so that the benignest anca is reference in all frames
+imp.clust.1$anca <- relevel(imp.clust.1$anca, ref = "3")
+imp.clust.2$anca <- relevel(imp.clust.2$anca, ref = "3")
+imp.clust.3$anca <- relevel(imp.clust.3$anca, ref = "3")
+imp.clust.4$anca <- relevel(imp.clust.4$anca, ref = "3")
+imp.clust.5$anca <- relevel(imp.clust.5$anca, ref = "3")
+imp.clust.6$anca <- relevel(imp.clust.6$anca, ref = "3")
+imp.clust.7$anca <- relevel(imp.clust.7$anca, ref = "3")
+imp.clust.8$anca <- relevel(imp.clust.8$anca, ref = "3")
+imp.clust.9$anca <- relevel(imp.clust.9$anca, ref = "3")
+imp.clust.10$anca <- relevel(imp.clust.10$anca, ref = "3")
+
+# Run 10 Fine-Gray models - ANCA affiliation
+
+# 1
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.1, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.1, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.1)
+fgfit1 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ anca + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# 2
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.2, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.2, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.2)
+fgfit2 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ anca + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# 3
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.3, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.3, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.3)
+fgfit3 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ anca + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# 4
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.4, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.4, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.4)
+fgfit4 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ anca + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# 5
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.5, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.5, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.5)
+fgfit5 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ anca + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# 6
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.6, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.6, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.6)
+fgfit6 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ anca + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# 7
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.7, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.7, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.7)
+fgfit7 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ anca + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# 8
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.8, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.8, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.8)
+fgfit8 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ anca + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# 9
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.9, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.9, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.9)
+fgfit9 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ anca + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# 10
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.10, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.10, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.10)
+fgfit10 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ anca + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# We summarize the pooled estimates
+ancaeskd.fitlist <- list(fgfit1, fgfit2, fgfit3, fgfit4, fgfit5, fgfit6, fgfit7, fgfit8, fgfit9, fgfit10)
+ancaeskd.est <- pool(as.mira(ancaeskd.fitlist))
+test_eskd3 <- summary(ancaeskd.est, conf.int = TRUE)
+test_eskd3
+
+# These are the exp estimates
+ancaeskd.forestplot <- cbind(test_eskd3$term, exp(test_eskd3$estimate), exp(test_eskd3$`2.5 %`), exp(test_eskd3$`97.5 %`))
+# Insert reference rows
+ancaeskd.forestplot <- rbind(c("PR3", 0,0,0), ancaeskd.forestplot)
+new_mat3 <- matrix(0,nrow=11,ncol=4)  
+new_mat3[-c(5,7),] <-ancaeskd.forestplot 
+ancaeskd.forestplot  <- new_mat3
+ancaeskd.forestplot[,1] <- c("PR3", "ANCA negative","MPO", "Age", "Female", "Male", "Czech", "FVSG", "GeVas", "RKD", "Skåne")
+ancaeskd.forestplot
+
+# Retrieve AIC from all 10 models
+mean_ancaeskd_avg <- mean(c(AIC(fgfit1),
+AIC(fgfit2),
+AIC(fgfit3),
+AIC(fgfit4),
+AIC(fgfit5),
+AIC(fgfit6),
+AIC(fgfit7),
+AIC(fgfit8),
+AIC(fgfit9),
+AIC(fgfit10)))
+
+# Run 10 Fine-Gray models - Mahr affiliation
+
+### We do the same using the Mahr class
+imp.clust.1$mahr_class <- relevel(imp.clust.1$mahr_class, ref = "Non-renal AAV")
+imp.clust.2$mahr_class <- relevel(imp.clust.2$mahr_class, ref = "Non-renal AAV")
+imp.clust.3$mahr_class <- relevel(imp.clust.3$mahr_class, ref = "Non-renal AAV")
+imp.clust.4$mahr_class <- relevel(imp.clust.4$mahr_class, ref = "Non-renal AAV")
+imp.clust.5$mahr_class <- relevel(imp.clust.5$mahr_class, ref = "Non-renal AAV")
+imp.clust.6$mahr_class <- relevel(imp.clust.6$mahr_class, ref = "Non-renal AAV")
+imp.clust.7$mahr_class<- relevel(imp.clust.7$mahr_class, ref = "Non-renal AAV")
+imp.clust.8$mahr_class <- relevel(imp.clust.8$mahr_class, ref = "Non-renal AAV")
+imp.clust.9$mahr_class <- relevel(imp.clust.9$mahr_class, ref = "Non-renal AAV")
+imp.clust.10$mahr_class <- relevel(imp.clust.10$mahr_class, ref = "Non-renal AAV")
+
+
+# 1
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.1, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.1, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.1)
+fgfit1 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ mahr_class + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# 2
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.2, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.2, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.2)
+fgfit2 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ mahr_class + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# 3
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.3, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.3, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.3)
+fgfit3 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ mahr_class + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# 4
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.4, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.4, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.4)
+fgfit4 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ mahr_class + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# 5
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.5, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.5, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.5)
+fgfit5 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ mahr_class + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# 6
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.6, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.6, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.6)
+fgfit6 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ mahr_class + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# 7
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.7, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.7, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.7)
+fgfit7 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ mahr_class + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# 8
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.8, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.8, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.8)
+fgfit8 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ mahr_class + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# 9
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.9, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.9, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.9)
+fgfit9 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ mahr_class + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# 10
+# Treat time to death and plasma cell malignancy as competing risks
+etime <- with(imp.clust.10, ifelse(eskd==0, timeoffollowup, timeoffollowupeskd))
+event <- with(imp.clust.10, ifelse(eskd==0, death*2, 1))
+event <- factor(event, 0:2, labels=c("censor", "eskd", "death"))
+# FG model for PCM
+pdata <- finegray(Surv(etime, event) ~ ., data=imp.clust.10)
+fgfit10 <- coxph(Surv(fgstart, fgstop, fgstatus) ~ mahr_class + age + gender + registry,
+weight=fgwt, data=pdata)
+
+# We summarize the pooled estimates
+mahreskd.fitlist <- list(fgfit1, fgfit2, fgfit3, fgfit4, fgfit5, fgfit6, fgfit7, fgfit8, fgfit9, fgfit10)
+mahreskd.est <- pool(as.mira(mahreskd.fitlist))
+test_eskd4 <- summary(mahreskd.est, conf.int = TRUE)
+test_eskd4
+
+# These are the exp estimates
+mahreskd.forestplot <- cbind(test_eskd4$term, exp(test_eskd4$estimate), exp(test_eskd4$`2.5 %`), exp(test_eskd4$`97.5 %`))
+
+# Insert reference rows
+mahreskd.forestplot <- rbind(c( "Non-renal AAV", 0,0,0), mahreskd.forestplot)
+new_mat <- matrix(0,nrow=13,ncol=4)  
+new_mat[-c(7,9),] <- mahreskd.forestplot
+mahreskd.forestplot  <- new_mat
+mahreskd.forestplot[,1] <- c( "Non-renal AAV", "CV AAV", "GI AAV", "Renal AAV with PR3-ANCA", "Renal AAV with PR3-ANCA", "Age", "Female", "Male", "Czech", "FVSG", "GeVas", "RKD", "Skåne")
+mahreskd.forestplot
+
+# Retrieve AIC from all 10 models
+mean_mahreskd_avg <- mean(c(AIC(fgfit1),
+AIC(fgfit2),
+AIC(fgfit3),
+AIC(fgfit4),
+AIC(fgfit5),
+AIC(fgfit6),
+AIC(fgfit7),
+AIC(fgfit8),
+AIC(fgfit9),
+AIC(fgfit10)))
+
+# AIC for the models
+mean_cleskd_avg
+mean_dia_eskd_avg
+mean_ancaeskd_avg
+mean_mahreskd_avg 
+
+# Our clustering model is significantly better! 
+mean_dia_eskd_avg-mean_cleskd_avg
+mean_ancaeskd_avg-mean_cleskd_avg
+mean_mahreskd_avg-mean_cleskd_avg
+
+```
+
+
+### Unadjusted surival curves (Kaplan-Meier) with fixed cluster assignment (so no uncertainty)
+```{r}
+# Create 10 year follow up variable
+matrix <- matrix %>%
+  mutate(death_10 = case_when(timeoffollowup <= 3652.5 & death == TRUE ~ TRUE, 
+                              TRUE ~ FALSE)) %>%
+  mutate(timeoffollowup_10 = case_when(timeoffollowup >= 3652.5 ~ 3652.5,
+                                       TRUE ~ timeoffollowup))
+
+
+# add method to grid.draw
+grid.draw.ggsurvplot <- function(x){
+  survminer:::print.ggsurvplot(x, newpage = FALSE)
+}
+
+
+matrix$index_cl <- as.factor(matrix$index_cl)
+matrix$index_cl <- fct_relevel(matrix$index_cl, "2", "4", "5", "1", "3")
+
+# Cluster follow up
+fit_km_cl <- survfit(Surv(timeoffollowup_10/365.25, death_10) ~ index_cl, data = matrix)
+figure5_clust <- ggsurvplot(fit_km_cl, data = matrix, pval = TRUE, legend.labs =
+c("SK", "MPO-K", "PR3-K", "YR", "IMS"),
+xlab = "Time in years",
+censor.shape = "|",
+censor.size = 2,
+fontsize = 3,
+risk.table = "nrisk_cumcensor",
+risk.table.height = 0.3,
+risk.table.fontsize = 3,
+palette = c("#00468B99", "#ED000099", "#42B54099", "#0099B499", "#925E9F99")
+) 
+
+figure5_clust$table <- figure5_clust$table +
+  theme(plot.title = element_text(size = 10))
+
+ggsave("figure5_clust.pdf", figure5_clust, height = 6, width = 8)
+
+# We make the same plot but modify for web-app
+# Remove pval
+fit_km_cl <- survfit(Surv(timeoffollowup_10/365.25, death_10) ~ index_cl, data = matrix)
+figure5_clust_plotly <- ggsurvplot(fit_km_cl, data = matrix, pval = FALSE, legend.labs =
+c("SK", "MPO-K", "PR3-K", "YR", "IMS"),
+xlab = "Time in years",
+censor.shape = "|",
+censor.size = 2,
+fontsize = 3,
+risk.table = "nrisk_cumcensor",
+risk.table.height = 0.3,
+risk.table.fontsize = 3,
+palette = c("#00468B99", "#ED000099", "#42B54099", "#0099B499", "#925E9F99")
+) 
+
+
+# Diagnosis follow up
+fit_km_dia <- survfit(Surv(timeoffollowup_10/365.25, death_10) ~ maindiagnosis, data = matrix)
+figure5_dia <- ggsurvplot(fit_km_dia, data = matrix, pval = TRUE, legend.labs =
+c("GPA", "MPA"),
+xlab = "Time in years",
+censor.shape = "|",
+censor.size = 2,
+fontsize = 3,
+risk.table = "nrisk_cumcensor",
+risk.table.height = 0.3,
+risk.table.fontsize = 3
+)
+figure5_dia$table <- figure5_dia$table +
+  theme(plot.title = element_text(size = 10))
+
+ggsave("figure5_dia.pdf", figure5_dia, height = 6, width = 8)
+
+# ANCA follow up
+fit_km_anca <- survfit(Surv(timeoffollowup_10/365.25, death_10) ~ anca, data = matrix)
+figure5_anca <- ggsurvplot(fit_km_anca, data = matrix, pval = TRUE, legend.labs =
+c("ANCA negative", "MPO/P positive","PR3/c postive"),
+xlab = "Time in years",
+censor.shape = "|",
+censor.size = 2,
+fontsize = 3,
+risk.table = "nrisk_cumcensor",
+risk.table.height = 0.3,
+risk.table.fontsize = 3
+) 
+figure5_anca$table <- figure5_anca$table +
+  theme(plot.title = element_text(size = 10))
+
+ggsave("figure5_anca.pdf", figure5_anca, height = 6, width = 8)
+
+```
+
+### We plot the residuals of the registry/cluster chisq-test
+```{r}
+chi_square_result <- chisq.test(matrix$index_cl, matrix$registry)
+chi_square_result 
+sort(sqrt(rowSums((chi_square_result$stdres^2))))
+
+# Extract residuals
+residuals <- chi_square_result$residuals
+residuals <- as.data.frame(residuals)
+colnames(residuals) <- c("Cluster", "Registry", "Residuals")
+
+# Plotting
+pdf("residuals_plot.pdf")
+
+residuals_plot <- ggplot(data=residuals, aes(x=Cluster, y=Residuals, group=Registry)) +
+  geom_line(aes(color= Registry))+
+  geom_point(aes(color= Registry))+
+  scale_color_manual(values=c("#E69F00", "#56B4E9", "#009E73", "#CC79A7", "#0072B2", "#D55E00"))+
+  theme_minimal() +
+  scale_x_discrete(labels = c("YRS", "SIKL", "IMS", "MPO-K", "PR3-K"))
+print(residuals_plot)
+dev.off()
+residuals_plot
+```
+
+### Unadjusted incidence curves (Kaplan-Meier) with fixed cluster assignment (so no uncertainty)
+```{r}
+# Create 10 year follow up variable
+matrix <- matrix %>%
+  mutate(eskd_10 = case_when(timeoffollowupeskd <= 3652.5 & eskd == TRUE ~ TRUE, 
+                              TRUE ~ FALSE)) %>%
+  mutate(timeoffollowupeskd_10 = case_when(timeoffollowupeskd >= 3652.5 ~ 3652.5,
+                                       TRUE ~ timeoffollowupeskd))
+
+# We exclude POLVAS
+matrix <- matrix %>% 
+  filter(registry != "Polvas") %>%
+  droplevels()
+
+# Relevel
+matrix$index_cl <- as.factor(matrix$index_cl)
+matrix$index_cl <- fct_relevel(matrix$index_cl, "2", "4", "5", "1", "3")
+
+# Cluster 
+fit_km_cl_eskd <- survfit(Surv(timeoffollowupeskd_10/365.25, eskd_10) ~ index_cl, data = matrix)
+figure5_clust_eskd <- ggsurvplot(fit_km_cl_eskd, data = matrix, pval = TRUE, legend.labs =
+c("SK","MPO-K", "PR3-K", "YR", "IMS"),
+pval.coord = c(0,0.5),
+xlab = "Time in years",
+censor.shape = "|",
+censor.size = 2,
+fontsize = 3,
+risk.table = "nrisk_cumcensor",
+risk.table.height = 0.3,
+risk.table.fontsize = 3,
+fun = "event",
+palette = c("#00468B99", "#ED000099", "#42B54099", "#0099B499", "#925E9F99")
+) 
+
+figure5_clust_eskd$table <- figure5_clust_eskd$table +
+  theme(plot.title = element_text(size = 10))
+
+ggsave("figure5_clust_eskd.pdf", figure5_clust_eskd, height = 6, width = 8)
+
+# Make new plot for web interface
+# Remove pval
+fit_km_cl_eskd <- survfit(Surv(timeoffollowupeskd_10/365.25, eskd_10) ~ index_cl, data = matrix)
+figure5_clust_eskd_plotly <- ggsurvplot(fit_km_cl_eskd, data = matrix, pval = FALSE, legend.labs =
+c("SK","MPO-K", "PR3-K", "YR", "IMS"),
+pval.coord = c(0,0.5),
+xlab = "Time in years",
+censor.shape = "|",
+censor.size = 2,
+fontsize = 3,
+risk.table = "nrisk_cumcensor",
+risk.table.height = 0.3,
+risk.table.fontsize = 3,
+fun = "event",
+palette = c("#00468B99", "#ED000099", "#42B54099", "#0099B499", "#925E9F99")
+) 
+
+
+# Diagnosis
+fit_km_dia_eskd <- survfit(Surv(timeoffollowupeskd_10/365.25, eskd_10) ~ maindiagnosis, data = matrix)
+figure5_dia_eskd <- ggsurvplot(fit_km_dia_eskd, data = matrix, pval = TRUE, legend.labs =
+c("GPA", "MPA"),
+pval.coord = c(0,0.5),
+xlab = "Time in years",
+censor.shape = "|",
+censor.size = 2,
+fontsize = 3,
+risk.table = "nrisk_cumcensor",
+risk.table.height = 0.3,
+risk.table.fontsize = 3,
+fun = "event"
+) 
+
+figure5_dia_eskd$table <- figure5_dia_eskd$table +
+  theme(plot.title = element_text(size = 10))
+
+ggsave("figure5_dia_eskd.pdf", figure5_dia_eskd, height = 6, width = 8)
+
+# ANCA
+fit_km_anca_eskd <- survfit(Surv(timeoffollowupeskd_10/365.25, eskd_10) ~ anca, data = matrix)
+figure5_anca_eskd <- ggsurvplot(fit_km_anca_eskd, data = matrix, pval = TRUE, legend.labs =
+c("ANCA negative", "MPO/P positive","PR3/c postive"),
+pval.coord = c(0,0.5),
+xlab = "Time in years",
+censor.shape = "|",
+censor.size = 2,
+fontsize = 3,
+risk.table = "nrisk_cumcensor",
+risk.table.height = 0.3,
+risk.table.fontsize = 3,
+fun = "event"
+) 
+
+figure5_anca_eskd$table <- figure5_anca_eskd$table +
+  theme(plot.title = element_text(size = 10))
+
+ggsave("figure5_anca_eskd.pdf", figure5_anca_eskd, height = 6, width = 8)
+
+
+```
+
+
+
+
+
+
+
+
+
+
