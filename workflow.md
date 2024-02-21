@@ -16,4 +16,7 @@ Here the file imputed_data.rda is imported. Model-based clustering is run over t
 Here res_1.rda to res_10.rda are imported. The optimal clustering solution is found, and clusters (and parameters) relabelled according to Stephens method. Relabelled cluster data is saved as res_X_high.rda, where X is the iteration from 1-10.
 
 4.	Description and outcome analysis: describe_clusters.rmd
-Here relabeled clusters are explored. In this file we also import imputed_data.rda to use for the pooled analysis. Clusters are explored with descriptive statistics and prediction of outcome. 
+Here relabeled clusters are explored. In this file we also import imputed_data.rda to use for the pooled analysis. Clusters are explored with descriptive statistics and prediction of outcome.
+
+5. Validation:
+Some validation is done continously in the other files. Here we look specifically on the ECDF of the log-likelihoods in six leave-one registry out analysis
