@@ -9,7 +9,7 @@ To start: registry_prepared.csv are files where registry is the registry name (c
 1. Imputation of data: [full_matrix_generation.rmd](https://github.com/karlgi/clusteranalysis/blob/main/full_matrix_generation.Rmd)\
 Here all registry_prepared.csv are imported. Rows containing more than 50% missing values are removed. The rows are shuffled. Variables are selected and data missingness is explored. Data is imputed to generate 10 complete sets. This data is saved in imputed_data.rda. 
 
-2.	Model-based clustering: cluster_generation.rmd\
+2.	Model-based clustering: [cluster_generation.Rmd](https://github.com/karlgi/clusteranalysis/blob/main/full_matrix_generation.Rmd](https://github.com/karlgi/clusteranalysis/blob/main/cluster_generation.Rmd)\
 Here the file imputed_data.rda is imported. Model-based clustering is run over the 10 datasets and the results saved in res_X.rda where X is the number of the complete data frame from 1-10.
 
 3.	Exploration and relabeling of clusters: explore_results.rmd\
