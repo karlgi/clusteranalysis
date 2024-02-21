@@ -1,0 +1,160 @@
+---
+title: "Cluster analysis - workflow: 2.Generate the clusters"
+author: "Karl Gisslander"
+date: "2024-02-21"
+output: html_document
+---
+
+### Import and list relevant libraries
+```{r echo=FALSE}
+library(tidyverse)
+library(clustMD)
+library(mice)
+library(ggmice)
+```
+
+# Import data
+```{r echo = FALSE}
+load("imputed_data.rda")
+```
+
+
+```{r}
+# See the 10 complete data frames
+imp.1 <- complete(imp, 1)
+imp.2 <- complete(imp, 2)
+imp.3 <- complete(imp, 3)
+imp.4 <- complete(imp, 4)
+imp.5 <- complete(imp, 5)
+imp.6 <- complete(imp, 6)
+imp.7 <- complete(imp, 7)
+imp.8 <- complete(imp, 8)
+imp.9 <- complete(imp, 9)
+imp.10 <- complete(imp, 10)
+
+# Retain only the important values
+matrix.imp.1 <- imp.1[2:18]
+matrix.imp.2 <- imp.2[2:18]
+matrix.imp.3 <- imp.3[2:18]
+matrix.imp.4 <- imp.4[2:18]
+matrix.imp.5 <- imp.5[2:18]
+matrix.imp.6 <- imp.6[2:18]
+matrix.imp.7 <- imp.7[2:18]
+matrix.imp.8 <- imp.8[2:18]
+matrix.imp.9 <- imp.9[2:18]
+matrix.imp.10 <- imp.10[2:18]
+
+# Make all data numeric
+matrix.imp.1 <- matrix.imp.1 %>%
+  mutate_all(as.numeric)
+
+matrix.imp.2  <-matrix.imp.2 %>% 
+  mutate_all(as.numeric)
+
+matrix.imp.3  <-matrix.imp.3 %>% 
+  mutate_all(as.numeric)
+
+matrix.imp.4  <-matrix.imp.4 %>% 
+  mutate_all(as.numeric)
+
+matrix.imp.5  <-matrix.imp.5 %>% 
+  mutate_all(as.numeric)
+
+matrix.imp.6  <-matrix.imp.6 %>% 
+  mutate_all(as.numeric)
+
+matrix.imp.7  <-matrix.imp.7 %>% 
+  mutate_all(as.numeric)
+
+matrix.imp.8  <-matrix.imp.8 %>% 
+  mutate_all(as.numeric)
+
+matrix.imp.9  <-matrix.imp.9 %>% 
+  mutate_all(as.numeric)
+
+matrix.imp.10  <-matrix.imp.10 %>% 
+  mutate_all(as.numeric)
+
+# Turn all into matrices
+matrix.imp.1 <- as.matrix(matrix.imp.1)
+matrix.imp.2 <- as.matrix(matrix.imp.2)
+matrix.imp.3 <- as.matrix(matrix.imp.3)
+matrix.imp.4 <- as.matrix(matrix.imp.4)
+matrix.imp.5 <- as.matrix(matrix.imp.5)
+matrix.imp.6 <- as.matrix(matrix.imp.6)
+matrix.imp.7 <- as.matrix(matrix.imp.7)
+matrix.imp.8 <- as.matrix(matrix.imp.8)
+matrix.imp.9 <- as.matrix(matrix.imp.9)
+matrix.imp.10 <- as.matrix(matrix.imp.10)
+```
+
+### Generate the clusters
+```{r}
+# WARNING! THIS CAN BE COMPUTATIONALLY HEAVY AND TAKE TIME
+start.time <- Sys.time()
+
+# Cluster analysis for G = 1:5 in each of 10 imputed data sets
+
+res_1 <- clustMDparallel(X = matrix.imp.1 , G = 1:5, CnsIndx = 3, OrdIndx = 16, Nnorms = 100000,
+                       MaxIter = 500, models = c("EVI", "VVI"), store.params = FALSE, scale = TRUE,
+                       startCL = "mclust", autoStop= TRUE, ma.band=30, stop.tol=0.0001)
+
+res_2 <- clustMDparallel(X = matrix.imp.2 , G = 1:5, CnsIndx = 3, OrdIndx = 16, Nnorms = 100000,
+                       MaxIter = 500, models = c("EVI", "VVI"), store.params = FALSE, scale = TRUE,
+                       startCL = "mclust", autoStop= TRUE, ma.band=30, stop.tol=0.0001)
+
+res_3 <- clustMDparallel(X = matrix.imp.3 , G = 1:5, CnsIndx = 3, OrdIndx = 16, Nnorms = 100000,
+                       MaxIter = 500, models = c("EVI", "VVI"), store.params = FALSE, scale = TRUE,
+                       startCL = "mclust", autoStop= TRUE, ma.band=30, stop.tol=0.0001)
+
+res_4 <- clustMDparallel(X = matrix.imp.4 , G = 1:5, CnsIndx = 3, OrdIndx = 16, Nnorms = 100000,
+                       MaxIter = 500, models = c("EVI", "VVI"), store.params = FALSE, scale = TRUE,
+                       startCL = "mclust", autoStop= TRUE, ma.band=30, stop.tol=0.0001)
+
+res_5 <- clustMDparallel(X = matrix.imp.5 , G = 1:5, CnsIndx = 3, OrdIndx = 16, Nnorms = 100000,
+                       MaxIter = 500, models = c("EVI", "VVI"), store.params = FALSE, scale = TRUE,
+                       startCL = "mclust", autoStop= TRUE, ma.band=30, stop.tol=0.0001)
+
+res_6 <- clustMDparallel(X = matrix.imp.6 , G = 1:5, CnsIndx = 3, OrdIndx = 16, Nnorms = 100000,
+                       MaxIter = 500, models = c("EVI", "VVI"), store.params = FALSE, scale = TRUE,
+                       startCL = "mclust", autoStop= TRUE, ma.band=30, stop.tol=0.0001)
+
+res_7 <- clustMDparallel(X = matrix.imp.7 , G = 1:5, CnsIndx = 3, OrdIndx = 16, Nnorms = 100000,
+                       MaxIter = 500, models = c("EVI", "VVI"), store.params = FALSE, scale = TRUE,
+                       startCL = "mclust", autoStop= TRUE, ma.band=30, stop.tol=0.0001)
+
+res_8 <- clustMDparallel(X = matrix.imp.8 , G = 1:5, CnsIndx = 3, OrdIndx = 16, Nnorms = 100000,
+                       MaxIter = 500, models = c("EVI", "VVI"), store.params = FALSE, scale = TRUE,
+                       startCL = "mclust", autoStop= TRUE, ma.band=30, stop.tol=0.0001)
+
+res_9 <- clustMDparallel(X = matrix.imp.9 , G = 1:5, CnsIndx = 3, OrdIndx = 16, Nnorms = 100000,
+                       MaxIter = 500, models = c("EVI", "VVI"), store.params = FALSE, scale = TRUE,
+                       startCL = "mclust", autoStop= TRUE, ma.band=30, stop.tol=0.0001)
+
+res_10 <- clustMDparallel(X = matrix.imp.10 , G = 1:5, CnsIndx = 3, OrdIndx = 16, Nnorms = 100000,
+                       MaxIter = 500, models = c("EVI", "VVI"), store.params = FALSE, scale = TRUE,
+                       startCL = "mclust", autoStop= TRUE, ma.band=30, stop.tol=0.0001)
+
+end.time <- Sys.time()
+time.taken <- round(end.time - start.time,2)
+time.taken
+```
+
+# Save as rda files
+```{r}
+save(res_1, file = "res_1.rda")
+save(res_2, file = "res_2.rda")
+save(res_3, file = "res_3.rda")
+save(res_4, file = "res_4.rda")
+save(res_5, file = "res_5.rda")
+save(res_6, file = "res_6.rda")
+save(res_7, file = "res_7.rda")
+save(res_8, file = "res_8.rda")
+save(res_9, file = "res_9.rda")
+save(res_10, file = "res_10.rda")
+```
+
+
+
+
+
