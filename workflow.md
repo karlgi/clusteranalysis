@@ -18,5 +18,5 @@ Here res_1.rda to res_10.rda are imported. The optimal clustering solution is fo
 4.	Description and outcome analysis: describe_clusters.rmd\
 Here relabeled clusters are explored. In this file we also import imputed_data.rda to use for the pooled analysis. Clusters are explored with descriptive statistics and prediction of outcome.
 
-5. Validation:\
-Some validation is done continously in the other files. Here we look specifically on the ECDF of the log-likelihoods in six leave-one registry out analysis
+5. Validation: simulate_data.Rmd, leaveoneregistryout_analysis.Rmd and ECDF_plots.Rmd\
+Some validation is done continously in the other files. Here we look specifically on the ECDF of the log-likelihoods in six leave-one registry out analysis. Simulated data from the six registries is generated in simulate_data.Rmd, in leaveoneregistryout_analysis.Rmd we generate new clusterings excluding one registry at the time. We plot the ECDF in ECDF_plots.Rmd
