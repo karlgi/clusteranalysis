@@ -1,0 +1,3175 @@
+---
+title: "Cluster analysis - workflow: 3. Explore clusters and relabel"
+author: "Karl Gisslander"
+date: "2024-02-21"
+output: html_document
+---
+
+### Load libraries
+```{r}
+library(tidyverse)
+library(clustMD)
+library(mcclust)
+library(caret)
+library(qwraps2)
+library(kableExtra)
+library(mlr3measures)
+```
+
+### Load all cluster resuls
+```{r}
+load("res_1.rda")
+load("res_2.rda")
+load("res_3.rda")
+load("res_4.rda")
+load("res_5.rda")
+load("res_6.rda")
+load("res_7.rda")
+load("res_8.rda")
+load("res_9.rda")
+load("res_10.rda")
+```
+
+### Find highest average BIC
+```{r}
+bic1 <- as.data.frame(res_1$BICarray)
+bic1 <- tibble::rownames_to_column(bic1, "G")
+bic1 <- bic1 %>% 
+  mutate(G= str_replace(G, "G=", ""))
+bic_long1 <- bic1 %>%
+pivot_longer(!G, names_to = "Model", values_to = "bic")
+
+# Find best BICs
+bic2 <- as.data.frame(res_2$BICarray)
+bic2 <- tibble::rownames_to_column(bic2, "G")
+bic2 <- bic2 %>% 
+  mutate(G= str_replace(G, "G=", ""))
+bic_long2 <- bic2 %>%
+pivot_longer(!G, names_to = "Model", values_to = "bic")
+
+# Find best BICs
+bic3 <- as.data.frame(res_3$BICarray)
+bic3 <- tibble::rownames_to_column(bic3, "G")
+bic3 <- bic3 %>% 
+  mutate(G= str_replace(G, "G=", ""))
+bic_long3 <- bic3 %>%
+pivot_longer(!G, names_to = "Model", values_to = "bic")
+
+# Find best BICs
+bic4 <- as.data.frame(res_4$BICarray)
+bic4 <- tibble::rownames_to_column(bic4, "G")
+bic4 <- bic4 %>% 
+  mutate(G= str_replace(G, "G=", ""))
+bic_long4 <- bic4 %>%
+pivot_longer(!G, names_to = "Model", values_to = "bic")
+
+# Find best BICs
+bic5 <- as.data.frame(res_5$BICarray)
+bic5 <- tibble::rownames_to_column(bic5, "G")
+bic5 <- bic5 %>% 
+  mutate(G= str_replace(G, "G=", ""))
+bic_long5 <- bic5 %>%
+pivot_longer(!G, names_to = "Model", values_to = "bic")
+
+# Find best BICs
+bic6 <- as.data.frame(res_6$BICarray)
+bic6 <- tibble::rownames_to_column(bic6, "G")
+bic6 <- bic6 %>% 
+  mutate(G= str_replace(G, "G=", ""))
+bic_long6 <- bic6 %>%
+pivot_longer(!G, names_to = "Model", values_to = "bic")
+
+# Find best BICs
+bic7 <- as.data.frame(res_7$BICarray)
+bic7 <- tibble::rownames_to_column(bic7, "G")
+bic7 <- bic7 %>% 
+  mutate(G= str_replace(G, "G=", ""))
+bic_long7 <- bic7 %>%
+pivot_longer(!G, names_to = "Model", values_to = "bic")
+
+# Find best BICs
+bic8 <- as.data.frame(res_8$BICarray)
+bic8 <- tibble::rownames_to_column(bic8, "G")
+bic8 <- bic8 %>% 
+  mutate(G= str_replace(G, "G=", ""))
+bic_long8 <- bic8 %>%
+pivot_longer(!G, names_to = "Model", values_to = "bic")
+
+# Find best BICs
+bic9 <- as.data.frame(res_9$BICarray)
+bic9 <- tibble::rownames_to_column(bic9, "G")
+bic9 <- bic9 %>% 
+  mutate(G= str_replace(G, "G=", ""))
+bic_long9 <- bic9 %>%
+pivot_longer(!G, names_to = "Model", values_to = "bic")
+
+# Find best BICs
+bic10 <- as.data.frame(res_10$BICarray)
+bic10 <- tibble::rownames_to_column(bic10, "G")
+bic10 <- bic10 %>% 
+  mutate(G= str_replace(G, "G=", ""))
+bic_long10 <- bic10 %>%
+pivot_longer(!G, names_to = "Model", values_to = "bic")
+
+
+```
+
+```{r}
+#Row and model with highest value of BIC (indicating best fit)
+best_bic_1 <- bic_long1 %>% 
+  slice_max(bic)
+best_bic_2 <- bic_long2 %>% 
+  slice_max(bic)
+best_bic_3 <- bic_long3 %>% 
+  slice_max(bic)
+best_bic_4 <- bic_long4 %>% 
+  slice_max(bic)
+best_bic_5 <- bic_long5 %>% 
+  slice_max(bic)
+best_bic_6 <- bic_long6 %>% 
+  slice_max(bic)
+best_bic_7 <- bic_long7 %>% 
+  slice_max(bic)
+best_bic_8 <- bic_long8 %>% 
+  slice_max(bic)
+best_bic_9 <- bic_long9 %>% 
+  slice_max(bic)
+best_bic_10 <- bic_long10 %>% 
+  slice_max(bic)
+
+# Merge all these to one frame
+full_best_bic <- rbind(best_bic_1, best_bic_2, best_bic_3, best_bic_4, best_bic_5,
+                       best_bic_6, best_bic_7, best_bic_8, best_bic_9, best_bic_10)
+
+# Highest average BIC over all models and Gs (This could be another way to do it?)
+avg_bic <- cbind(bic_long1[,1:2], ((bic_long1[,3]+bic_long2[,3]+bic_long3[,3]+bic_long4[,3]+bic_long5[,3]+bic_long6[,3]+bic_long7[,3]+bic_long8[,3]+bic_long9[,3]+bic_long10[,3])/10))
+
+highavg_bic <- avg_bic %>% 
+  slice_max(bic)
+
+avg_bic_ci <- cbind(bic_long1[,1:2], bic_long1[,3],bic_long2[,3],bic_long3[,3],bic_long4[,3],bic_long5[,3],bic_long6[,3],bic_long7[,3],bic_long8[,3],bic_long9[,3],bic_long10[,3])
+
+ci_low <- apply(avg_bic_ci[3:12], 1, FUN = min)
+ci_high <- apply(avg_bic_ci[3:12], 1, FUN = max)
+
+
+avg_bic_ci <- cbind(avg_bic, ci_low, ci_high)
+avg_bic_ci
+
+avg_bic <- avg_bic %>%
+  mutate(Model = case_when(Model == "EVI" ~ "Equal volume - EVI",
+                           Model == "VVI" ~ "Variable volume - VVI"))
+
+pdf("bic_plot.pdf")
+bic_plot <- ggplot(avg_bic, aes(x=G, y=bic, group=Model, color=Model
+                    )) + 
+    geom_errorbar(aes(ymin=ci_low, ymax=ci_high), width=.1) +
+    geom_line() + geom_point()+
+   labs(x="Number of clusters", y = "BIC")+
+   scale_color_brewer(palette="Paired")+
+  theme_minimal()
+print(bic_plot)
+dev.off()
+bic_plot
+
+```
+
+### Take highest average (That is VVI = 5) from all runs
+```{r}
+# Retain the G = 5 VVI
+res_1_high <- getOutput_clustMDparallel(res_1, highavg_bic [,1], highavg_bic [,2])
+res_2_high <- getOutput_clustMDparallel(res_2, highavg_bic [,1], highavg_bic [,2])
+res_3_high <- getOutput_clustMDparallel(res_3, highavg_bic [,1], highavg_bic [,2])
+res_4_high <- getOutput_clustMDparallel(res_4, highavg_bic [,1], highavg_bic [,2])
+res_5_high <- getOutput_clustMDparallel(res_5, highavg_bic [,1], highavg_bic [,2])
+res_6_high <- getOutput_clustMDparallel(res_6, highavg_bic [,1], highavg_bic [,2])
+res_7_high <- getOutput_clustMDparallel(res_7, highavg_bic [,1], highavg_bic [,2])
+res_8_high <- getOutput_clustMDparallel(res_8, highavg_bic [,1], highavg_bic [,2])
+res_9_high <- getOutput_clustMDparallel(res_9, highavg_bic [,1], highavg_bic [,2])
+res_10_high <- getOutput_clustMDparallel(res_10, highavg_bic [,1], highavg_bic [,2])
+```
+
+### Relabel using Stephens method
+```{r}
+# WARNING! This is done manually. If your data looks different you need to rewrite this code
+
+# We use the package mcclust to relabel the clusters using Stephens' relabelling algorithm for clusterings. The mcclust::relabel function also provides a "optimal" cluster command based on probabilities.
+cls <- rbind(c(res_1_high$cl), c(res_2_high$cl), c(res_3_high$cl), c(res_4_high$cl), c(res_5_high$cl), c(res_6_high$cl), c(res_7_high$cl), c(res_8_high$cl), c(res_9_high$cl), c(res_10_high$cl))
+
+# Relabel
+cls.relab <- relabel(cls)
+
+# We'll find the new labels in cls.relab$cl, but we need to relabel also other matrices provided in res_X_high.
+
+# Res_1
+table(res_1_high$cl, cls.relab$cls[1,])
+
+# Rules
+# 1 -> 4
+# 2 -> 2
+# 3 -> 5
+# 4 -> 3
+# 5 -> 1
+res_1_high$cl <- cls.relab$cls[1,] 
+res_1_high$tau <- cbind(res_1_high$tau[,5], res_1_high$tau[,2], res_1_high$tau[,4], res_1_high$tau[,1], res_1_high$tau[,3]) 
+res_1_high$means <- cbind(res_1_high$means[,5], res_1_high$means[,2], res_1_high$means[,4], res_1_high$means[,1], res_1_high$means[,3]) 
+res_1_high$A <- rbind(res_1_high$A[5,], res_1_high$A[2,], res_1_high$A[4,], res_1_high$A[1,], res_1_high$A[3,])
+res_1_high$Lambda <- rbind(res_1_high$Lambda[5,], res_1_high$Lambda[2,], res_1_high$Lambda[4,], res_1_high$Lambda[1,], res_1_high$Lambda[3,])
+placeholder <- res_1_high$Sigma
+res_1_high$Sigma[,,1] <- placeholder[,,5]
+res_1_high$Sigma[,,2] <- placeholder[,,2]
+res_1_high$Sigma[,,3] <- placeholder[,,4]
+res_1_high$Sigma[,,4] <- placeholder[,,1]
+res_1_high$Sigma[,,5] <- placeholder[,,3]
+# CHECKED OK! 
+
+# Res_2
+table(res_2_high$cl, cls.relab$cls[2,])
+# Rules
+# 1 -> 1
+# 2 -> 2
+# 3 -> 3
+# 4 -> 5
+# 5 -> 4
+res_2_high$cl <- cls.relab$cls[2,] 
+res_2_high$tau <- cbind(res_2_high$tau[,1], res_2_high$tau[,2], res_2_high$tau[,3], res_2_high$tau[,5], res_2_high$tau[,4]) 
+res_2_high$means <- cbind(res_2_high$means[,1], res_2_high$means[,2], res_2_high$means[,3], res_2_high$means[,5], res_2_high$means[,4]) 
+res_2_high$A <- rbind(res_2_high$A[1,], res_2_high$A[2,], res_2_high$A[3,], res_2_high$A[5,], res_2_high$A[4,])
+res_2_high$Lambda <- rbind(res_2_high$Lambda[1,], res_2_high$Lambda[2,], res_2_high$Lambda[3,], res_2_high$Lambda[5,], res_2_high$Lambda[4,])
+placeholder <- res_2_high$Sigma
+res_2_high$Sigma[,,1] <- placeholder[,,1]
+res_2_high$Sigma[,,2] <- placeholder[,,2]
+res_2_high$Sigma[,,3] <- placeholder[,,3]
+res_2_high$Sigma[,,4] <- placeholder[,,5]
+res_2_high$Sigma[,,5] <- placeholder[,,4]
+# CHECKED OK!
+
+# Res_3
+table(res_3_high$cl, cls.relab$cls[3,])
+# Rules
+# 1 -> 2 
+# 2 -> 3
+# 3 -> 4
+# 4 -> 1
+# 5 -> 5
+res_3_high$cl <- cls.relab$cls[3,] 
+res_3_high$tau <- cbind(res_3_high$tau[,4], res_3_high$tau[,1], res_3_high$tau[,2], res_3_high$tau[,3], res_3_high$tau[,5]) 
+res_3_high$means <- cbind(res_3_high$means[,4], res_3_high$means[,1], res_3_high$means[,2], res_3_high$means[,3], res_3_high$means[,5]) 
+res_3_high$A <- rbind(res_3_high$A[4,], res_3_high$A[1,], res_3_high$A[2,], res_3_high$A[3,], res_3_high$A[5,])
+res_3_high$Lambda <- rbind(res_3_high$Lambda[4,], res_3_high$Lambda[1,], res_3_high$Lambda[2,], res_3_high$Lambda[3,], res_3_high$Lambda[5,])
+placeholder <- res_3_high$Sigma
+res_3_high$Sigma[,,1] <- placeholder[,,4]
+res_3_high$Sigma[,,2] <- placeholder[,,1]
+res_3_high$Sigma[,,3] <- placeholder[,,2]
+res_3_high$Sigma[,,4] <- placeholder[,,3]
+res_3_high$Sigma[,,5] <- placeholder[,,5]
+# CHECKED OK!
+
+# Res_4
+table(res_4_high$cl, cls.relab$cls[4,])
+# Rules
+# 1 -> 2
+# 2 -> 3
+# 3 -> 5
+# 4 -> 4
+# 5 -> 1
+res_4_high$cl <- cls.relab$cls[4,] 
+res_4_high$tau <- cbind(res_4_high$tau[,5], res_4_high$tau[,1], res_4_high$tau[,2], res_4_high$tau[,4], res_4_high$tau[,3]) 
+res_4_high$means <- cbind(res_4_high$means[,5], res_4_high$means[,1], res_4_high$means[,2], res_4_high$means[,4], res_4_high$means[,3]) 
+res_4_high$A <- cbind(res_4_high$A[5,], res_4_high$A[1,], res_4_high$A[2,], res_4_high$A[4,], res_4_high$A[3,]) 
+res_4_high$Lambda <- cbind(res_4_high$Lambda[5,], res_4_high$Lambda[1,], res_4_high$Lambda[2,], res_4_high$Lambda[4,], res_4_high$Lambda[3,]) 
+placeholder <- res_4_high$Sigma
+res_4_high$Sigma[,,1] <- placeholder[,,5]
+res_4_high$Sigma[,,2] <- placeholder[,,1]
+res_4_high$Sigma[,,3] <- placeholder[,,2]
+res_4_high$Sigma[,,4] <- placeholder[,,4]
+res_4_high$Sigma[,,5] <- placeholder[,,3]
+# CHECKED OK!
+
+
+
+# Res_5
+table(res_5_high$cl, cls.relab$cls[5,])
+# Rules
+# 1 -> 1 
+# 2 -> 3
+# 3 -> 4
+# 4 -> 2
+# 5 -> 5
+res_5_high$cl <- cls.relab$cls[5,] 
+res_5_high$tau <- cbind(res_5_high$tau[,1], res_5_high$tau[,4], res_5_high$tau[,2], res_5_high$tau[,3], res_5_high$tau[,5]) 
+res_5_high$means <- cbind(res_5_high$means[,1], res_5_high$means[,4], res_5_high$means[,2], res_5_high$means[,3], res_5_high$means[,5]) 
+res_5_high$A <- cbind(res_5_high$A[1,], res_5_high$A[4,], res_5_high$A[2,], res_5_high$A[3,], res_5_high$A[5,]) 
+res_5_high$Lambda <- cbind(res_5_high$Lambda[1,], res_5_high$Lambda[4,], res_5_high$Lambda[2,], res_5_high$Lambda[3,], res_5_high$Lambda[5,]) 
+placeholder <- res_5_high$Sigma
+res_5_high$Sigma[,,1] <- placeholder[,,1]
+res_5_high$Sigma[,,2] <- placeholder[,,4]
+res_5_high$Sigma[,,3] <- placeholder[,,2]
+res_5_high$Sigma[,,4] <- placeholder[,,3]
+res_5_high$Sigma[,,5] <- placeholder[,,5]
+# CHECKED OK!
+
+# Res_6
+table(res_6_high$cl, cls.relab$cls[6,])
+# Rules
+# 1 -> 1
+# 2 -> 2
+# 3 -> 3
+# 4 -> 4
+# 5 -> 5
+# Nothing to be done!
+
+# CHECKED OK! 
+
+# Res_7
+table(res_7_high$cl, cls.relab$cls[7,])
+# Rules
+# 1 -> 3
+# 2 -> 2
+# 3 -> 1
+# 4 -> 5
+# 5 -> 4
+res_7_high$cl <- cls.relab$cls[7,] 
+res_7_high$tau <- cbind(res_7_high$tau[,3], res_7_high$tau[,2], res_7_high$tau[,1], res_7_high$tau[,5], res_7_high$tau[,4]) 
+res_7_high$means <- cbind(res_7_high$means[,3], res_7_high$means[,2], res_7_high$means[,1], res_7_high$means[,5], res_7_high$means[,4]) 
+res_7_high$A <- cbind(res_7_high$A[3,], res_7_high$A[2,], res_7_high$A[1,], res_7_high$A[5,], res_7_high$A[4,]) 
+res_7_high$Lambda <- cbind(res_7_high$Lambda[3,], res_7_high$Lambda[2,], res_7_high$Lambda[1,], res_7_high$Lambda[5,], res_7_high$Lambda[4,]) 
+placeholder <- res_7_high$Sigma
+res_7_high$Sigma[,,1] <- placeholder[,,3]
+res_7_high$Sigma[,,2] <- placeholder[,,2]
+res_7_high$Sigma[,,3] <- placeholder[,,1]
+res_7_high$Sigma[,,4] <- placeholder[,,5]
+res_7_high$Sigma[,,5] <- placeholder[,,4]
+# CHECKED OK! 
+
+
+# Res_8
+table(res_8_high$cl, cls.relab$cls[8,])
+# 1 -> 5
+# 2 -> 1
+# 3 -> 3
+# 4 -> 4
+# 5 -> 2
+res_8_high$cl <- cls.relab$cls[8,] 
+res_8_high$tau <- cbind(res_8_high$tau[,2], res_8_high$tau[,5], res_8_high$tau[,3], res_8_high$tau[,4], res_8_high$tau[,1]) 
+res_8_high$means <- cbind(res_8_high$means[,2], res_8_high$means[,5], res_8_high$means[,3], res_8_high$means[,4], res_8_high$means[,1]) 
+res_8_high$A <- cbind(res_8_high$A[2,], res_8_high$A[5,], res_8_high$A[3,], res_8_high$A[4,], res_8_high$A[1,]) 
+res_8_high$Lambda <- cbind(res_8_high$Lambda[2,], res_8_high$Lambda[5,], res_8_high$Lambda[3,], res_8_high$Lambda[4,], res_8_high$Lambda[1,]) 
+placeholder <- res_8_high$Sigma
+res_8_high$Sigma[,,1] <- placeholder[,,2]
+res_8_high$Sigma[,,2] <- placeholder[,,5]
+res_8_high$Sigma[,,3] <- placeholder[,,3]
+res_8_high$Sigma[,,4] <- placeholder[,,4]
+res_8_high$Sigma[,,5] <- placeholder[,,1]
+# CHECKED OK! 
+
+# Res_9
+table(res_9_high$cl, cls.relab$cls[9,])
+# 1 -> 5
+# 2 -> 1
+# 3 -> 3
+# 4 -> 4
+# 5 -> 2
+res_9_high$cl <- cls.relab$cls[9,] 
+res_9_high$tau <- cbind(res_9_high$tau[,2], res_9_high$tau[,5], res_9_high$tau[,3], res_9_high$tau[,4], res_9_high$tau[,1]) 
+res_9_high$means <- cbind(res_9_high$means[,2], res_9_high$means[,5], res_9_high$means[,3], res_9_high$means[,4], res_9_high$means[,1]) 
+res_9_high$A <- cbind(res_9_high$A[2,], res_9_high$A[5,], res_9_high$A[3,], res_9_high$A[4,], res_9_high$A[1,]) 
+res_9_high$Lambda <- cbind(res_9_high$Lambda[2,], res_9_high$Lambda[5,], res_9_high$Lambda[3,], res_9_high$Lambda[4,], res_9_high$Lambda[1,]) 
+placeholder <- res_9_high$Sigma
+res_9_high$Sigma[,,1] <- placeholder[,,2]
+res_9_high$Sigma[,,2] <- placeholder[,,5]
+res_9_high$Sigma[,,3] <- placeholder[,,3]
+res_9_high$Sigma[,,4] <- placeholder[,,4]
+res_9_high$Sigma[,,5] <- placeholder[,,1]
+# CHECKED OK! 
+
+# Res_10
+table(res_10_high$cl, cls.relab$cls[10,])
+# 1 -> 1
+# 2 -> 4
+# 3 -> 5
+# 4 -> 3
+# 5 -> 2
+res_10_high$cl <- cls.relab$cls[10,] 
+res_10_high$tau <- cbind(res_10_high$tau[,1], res_10_high$tau[,5], res_10_high$tau[,4], res_10_high$tau[,2], res_10_high$tau[,3]) 
+res_10_high$means <- cbind(res_10_high$means[,1], res_10_high$means[,5], res_10_high$means[,4], res_10_high$means[,2], res_10_high$means[,3]) 
+res_10_high$A <- cbind(res_10_high$A[1,], res_10_high$A[5,], res_10_high$A[4,], res_10_high$A[2,], res_10_high$A[3,]) 
+res_10_high$Lambda <- cbind(res_10_high$Lambda[1,], res_10_high$Lambda[5,], res_10_high$Lambda[4,], res_10_high$Lambda[2,], res_10_high$Lambda[3,]) 
+placeholder <- res_10_high$Sigma
+res_10_high$Sigma[,,1] <- placeholder[,,1]
+res_10_high$Sigma[,,2] <- placeholder[,,5]
+res_10_high$Sigma[,,3] <- placeholder[,,4]
+res_10_high$Sigma[,,4] <- placeholder[,,2]
+res_10_high$Sigma[,,5] <- placeholder[,,3]
+
+# CHECKED OK! 
+
+# Save relabeled objects
+save(res_1_high, file = "res_1_high.rda")
+save(res_2_high, file = "res_2_high.rda")
+save(res_3_high, file = "res_3_high.rda")
+save(res_4_high, file = "res_4_high.rda")
+save(res_5_high, file = "res_5_high.rda")
+save(res_6_high, file = "res_6_high.rda")
+save(res_7_high, file = "res_7_high.rda")
+save(res_8_high, file = "res_8_high.rda")
+save(res_9_high, file = "res_9_high.rda")
+save(res_10_high, file = "res_10_high.rda")
+
+
+# Nake frame with cluster assignment in all 10 sets
+data_frame <- as.data.frame(cbind(res_1_high$cl, res_2_high$cl, res_3_high$cl, res_4_high$cl, res_5_high$cl, res_6_high$cl, res_7_high$cl, res_8_high$cl, res_9_high$cl, res_10_high$cl))
+
+rand_indices_matrix <- matrix(0, nrow = 10, ncol = 10)
+
+# Loop through all columns
+for (i in 1:10) {
+  for (j in 1:10) {
+    # Extract the ith and jth columns from the data frame
+    column_i <- data_frame[, i]
+    column_j <- data_frame[, j]
+    
+    # Calculate the Rand index for the combination of columns i and j
+    rand_index <- ifelse(i == j, 1.0, mclust::adjustedRandIndex(column_i, column_j))
+    
+    # Store the result in the matrix
+    rand_indices_matrix[i, j] <- rand_index
+  }
+}
+
+# Print the matrix of Rand indices
+print(rand_indices_matrix)
+write.csv(as.data.frame(round(rand_indices_matrix,digits= 2)), "rand_indices_matrix.csv", row.names = TRUE)
+
+# We do the same with weighted Cohen's Kappa
+kappa_matrix <- matrix(0, nrow = 10, ncol = 10)
+# Loop through all columns
+for (i in 1:10) {
+  for (j in 1:10) {
+    # Extract the ith and jth columns from the data frame
+    column_i <- data_frame[, i]
+    column_j <- data_frame[, j]
+    
+# Calculate Cohen's Kappa for the combination of columns i and j
+    kappa_value <- psych::cohen.kappa(table(column_i, column_j))$weighted.kappa
+    
+    # Store the result in the matrix
+    kappa_matrix[i, j] <- kappa_value
+  }
+}
+
+# Print the matrix of Cohen's Kappa values
+print(kappa_matrix)
+write.csv(as.data.frame(round(kappa_matrix,digits= 2)), "kappa_matrix.csv", row.names = TRUE)
+
+
+# We do the same with unweighted Cohen's Kappa
+kappa_matrix2 <- matrix(0, nrow = 10, ncol = 10)
+# Loop through all columns
+for (i in 1:10) {
+  for (j in 1:10) {
+    # Extract the ith and jth columns from the data frame
+    column_i <- data_frame[, i]
+    column_j <- data_frame[, j]
+    
+# Calculate Cohen's Kappa for the combination of columns i and j
+    kappa_value2 <- psych::cohen.kappa(table(column_i, column_j))$kappa
+    
+    # Store the result in the matrix
+    kappa_matrix2[i, j] <- kappa_value2
+  }
+}
+
+# Print the matrix of Cohen's Kappa values
+print(kappa_matrix2)
+write.csv(as.data.frame(round(kappa_matrix2,digits= 2)), "kappa_matrix_unweight.csv", row.names = TRUE)
+
+# Jaccard index testing values
+num_columns <- length(data_frame)
+num_sets <- length(unique(data_frame$V1))
+
+# Cluster 1
+
+# Initialize an empty matrix to store the Jaccard similarity indices
+jaccard_matrix_1 <- matrix(0, nrow = num_columns, ncol = num_columns)
+
+# Loop over each pair of columns
+for (i in 1:num_columns) {
+  for (j in 1:num_columns) {
+    set1 <- which(data_frame[, i] == 1)
+    set2 <- which(data_frame[, j] == 1)
+    jaccard_matrix_1[i, j] <- jaccard(list(set1, set2))
+  }
+}
+
+print(jaccard_matrix_1)
+write.csv(as.data.frame(round(jaccard_matrix_1, digits= 2)), "jaccard_matrix_1.csv", row.names = TRUE)
+
+# Cluster 2
+
+# Initialize an empty matrix to store the Jaccard similarity indices
+jaccard_matrix_2 <- matrix(0, nrow = num_columns, ncol = num_columns)
+
+# Loop over each pair of columns
+for (i in 1:num_columns) {
+  for (j in 1:num_columns) {
+    set1 <- which(data_frame[, i] == 2)
+    set2 <- which(data_frame[, j] == 2)
+    jaccard_matrix_2[i, j] <- jaccard(list(set1, set2))
+  }
+}
+
+print(jaccard_matrix_2)
+write.csv(as.data.frame(round(jaccard_matrix_2, digits= 2)), "jaccard_matrix_2.csv", row.names = TRUE)
+
+
+# Cluster 3
+
+# Initialize an empty matrix to store the Jaccard similarity indices
+jaccard_matrix_3 <- matrix(0, nrow = num_columns, ncol = num_columns)
+
+# Loop over each pair of columns
+for (i in 1:num_columns) {
+  for (j in 1:num_columns) {
+    set1 <- which(data_frame[, i] == 3)
+    set2 <- which(data_frame[, j] == 3)
+    jaccard_matrix_3[i, j] <- jaccard(list(set1, set2))
+  }
+}
+
+print(jaccard_matrix_3)
+write.csv(as.data.frame(round(jaccard_matrix_3, digits= 2)), "jaccard_matrix_3.csv", row.names = TRUE)
+
+
+# Cluster 4
+
+# Initialize an empty matrix to store the Jaccard similarity indices
+jaccard_matrix_4 <- matrix(0, nrow = num_columns, ncol = num_columns)
+
+# Loop over each pair of columns
+for (i in 1:num_columns) {
+  for (j in 1:num_columns) {
+    set1 <- which(data_frame[, i] == 4)
+    set2 <- which(data_frame[, j] == 4)
+    jaccard_matrix_4[i, j] <- jaccard(list(set1, set2))
+  }
+}
+
+print(jaccard_matrix_4)
+write.csv(as.data.frame(round(jaccard_matrix_4, digits= 2)), "jaccard_matrix_4.csv", row.names = TRUE)
+
+
+# Cluster 5
+
+# Initialize an empty matrix to store the Jaccard similarity indices
+jaccard_matrix_5 <- matrix(0, nrow = num_columns, ncol = num_columns)
+
+# Loop over each pair of columns
+for (i in 1:num_columns) {
+  for (j in 1:num_columns) {
+    set1 <- which(data_frame[, i] == 5)
+    set2 <- which(data_frame[, j] == 5)
+    jaccard_matrix_5[i, j] <- jaccard(list(set1, set2))
+  }
+}
+
+print(jaccard_matrix_5)
+write.csv(as.data.frame(round(jaccard_matrix_5, digits= 2)), "jaccard_matrix_5.csv", row.names = TRUE)
+
+# Would this be a reasonable thing to do? Or am I inflating it by including self-comparisons?
+# Cluster 1 Jaccard mean
+mean(jaccard_matrix_1[lower.tri(jaccard_matrix_1)])
+sd(jaccard_matrix_1[lower.tri(jaccard_matrix_1)])
+
+# Cluster 2 Jaccard mean
+mean(jaccard_matrix_2[lower.tri(jaccard_matrix_2)])
+sd(jaccard_matrix_2[lower.tri(jaccard_matrix_2)])
+
+# Cluster 3 Jaccard mean
+mean(jaccard_matrix_3[lower.tri(jaccard_matrix_3)])
+sd(jaccard_matrix_3[lower.tri(jaccard_matrix_3)])
+
+# Cluster 4 Jaccard mean
+mean(jaccard_matrix_4[lower.tri(jaccard_matrix_4)])
+sd(jaccard_matrix_4[lower.tri(jaccard_matrix_4)])
+
+# Cluster 5 Jaccard mean
+mean(jaccard_matrix_5[lower.tri(jaccard_matrix_5)])
+sd(jaccard_matrix_5[lower.tri(jaccard_matrix_5)])
+
+```
+
+### Get the log-likelihoods for the individual datapoints
+First we define the log-likelihood function. This is taken from clustMD:::ObsLogLikelihood and returns not the sum but a vector of N log-likelihoods.
+```{r}
+ObsLogLikelihood <- function(N, CnsIndx, G, Y, mu, Sigma, pi.vec, patt.indx, 
+                             zlimits, J, OrdIndx, probs.nom, model, perc.cut, K) {
+  # Continuous
+  logLikeCns <- rep(0, N)
+  if (CnsIndx > 0) {
+    densCns <- matrix(NA, N, G)
+    for (g in 1:G) {
+      densCns[, g] <- 
+        mvtnorm::dmvnorm(matrix(Y[, 1:CnsIndx], nrow = N),
+                         mean = mu[1:CnsIndx, g],
+                         sigma = matrix(Sigma[1:CnsIndx, 1:CnsIndx, g], CnsIndx, CnsIndx),
+                         log = TRUE)
+    }
+    densCns <- sweep(densCns, 2, log(pi.vec), "+")
+    logLikeCns <- apply(densCns, 1, stable.probs)
+  }
+  
+  # Categorical
+  logLikeCat <- rep(0, N)
+  if (J > CnsIndx) {
+    # Ordinal
+    densOrd <- matrix(1, N, G)
+    if (OrdIndx > CnsIndx) {
+      
+      if(model=="BD") {
+        for (g in 1:G) {
+          for (p in 1:length(patt.indx)) {
+            densOrd[patt.indx[[p]], g] <- 
+              mvtnorm::pmvnorm(lower = zlimits[patt.indx[[p]][1], (CnsIndx + 1):OrdIndx, 1],
+                               upper = zlimits[patt.indx[[p]][1], (CnsIndx + 1):OrdIndx, 2],
+                               mean = mu[(CnsIndx + 1):OrdIndx, g],
+                               sigma = Sigma[(CnsIndx + 1):OrdIndx, (CnsIndx + 1):OrdIndx, g])
+          }  # p
+        }  # g
+      } else {
+        OrdProbs <- array(NA, c(OrdIndx-CnsIndx, max(K[(CnsIndx+1):OrdIndx]),G))
+        for(j in (CnsIndx+1):OrdIndx){
+          for(g in 1:G){
+            CumulProbs <- pnorm(perc.cut[[j]], mean=mu[j, g], sd=sqrt(Sigma[j, j, g]))
+            for(k in 1:K[j])
+              OrdProbs[j-CnsIndx, k, g] <- CumulProbs[k+1] - CumulProbs[k]
+            
+            densOrd[, g] <- densOrd[, g]*OrdProbs[j-CnsIndx, Y[, j], g]
+          } # g
+        } # j
+      } # ifelse
+      
+    } # if
+    
+    # Nominal
+    densNom <- matrix(1, N, G)
+    if (J > OrdIndx) {
+      for (g in 1:G) {
+        for (j in (OrdIndx + 1):J) 
+          densNom[, g] <- densNom[, g] * probs.nom[j - OrdIndx, Y[, j], g]
+      }  # g
+    }
+    
+    logDensCat <- log(densOrd) + log(densNom)
+    logDensCat <- sweep(logDensCat, 2, log(pi.vec), "+")
+    logLikeCat <- apply(logDensCat, 1, stable.probs)
+  }
+  
+  logLike <- (logLikeCns + logLikeCat)
+  logLike
+}
+
+```
+
+We then define the dependencies and run the above functions for each of the 10 selected models. The results are stored in vectors.
+
+# Model 1
+```{r}
+# Define the model we're running. This is the same as the clustMD we ran above
+Y <- res_1_high$Y
+N <- nrow(res_1_high$Y)
+J <- ncol(res_1_high$Y)
+G <- 5
+CnsIndx <- 3
+OrdIndx <- 16
+model <- "VVI"
+ind = res_1_high$cl
+
+K <- apply(Y, 2, max)
+if (CnsIndx > 0) 
+  K[1:CnsIndx] <- NA
+D <- J
+if (J > OrdIndx) 
+  D <- OrdIndx + sum(K[(OrdIndx + 1):J] - 1)
+
+# Which dimensions correspond to each item
+if (J > OrdIndx) {
+  nom.ind.Z <- vector("list", J - OrdIndx)
+  for (j in 1:(J - OrdIndx)) {
+    if (j == 1) {
+      start <- OrdIndx + 1
+    } else {
+      start <- OrdIndx + sum(K[(OrdIndx + 1):(OrdIndx + j - 1)] - 1) + 1
+    }
+    finish <- start + K[OrdIndx + j] - 2
+    nom.ind.Z[[j]] <- c(start:finish)
+  }  # j
+}  # if
+
+if ( (model == "BD")&(OrdIndx > CnsIndx) ){
+  if((OrdIndx-CnsIndx)==1){
+    patt.indx <- list()
+    for(p in 1:max(Y[, OrdIndx])) {patt.indx[[p]] <- which(Y[, OrdIndx]==p)}
+  }else{
+    patt.tab <- data.frame(table(data.frame((Y[, (CnsIndx + 1):OrdIndx]))))
+    patt.tab <- patt.tab[patt.tab$Freq != 0, 1:(OrdIndx - CnsIndx)]
+    patt.indx <- list()
+    for (p in 1:nrow(patt.tab)) {
+      patt.indx[[p]] <- which(apply(Y[, (CnsIndx + 1):OrdIndx], 1, patt.equal, patt.tab[p, ]))
+    } # p
+  }
+} # if
+
+Ynames <- colnames(Y)
+VarNames <- as.character(1:D)
+if (!is.null(Ynames)) {
+  VarNames[1:OrdIndx] <- Ynames[1:OrdIndx]
+  
+  if (J > OrdIndx) {
+    NomNames <- list()
+    for (j in (OrdIndx + 1):J) {
+      NomNames[[j - OrdIndx]] <- rep(NA, (K[j] - 1))
+      for(k in 1:(K[j] - 1)) {
+        NomNames[[j - OrdIndx]][k] <- paste(Ynames[j],"_", k, sep = "")
+      }
+    }
+    VarNames[(OrdIndx + 1):D] <- unlist(NomNames)
+  }
+} else {
+  for(j in 1:OrdIndx) {
+    VarNames[j] <- paste("V", j, sep = "")
+  }
+  
+  if (J > OrdIndx) {
+    NomNames <- list()
+    for (j in (OrdIndx + 1):J) {
+      NomNames[[j - OrdIndx]] <- rep(paste("V", j, sep=""), (K[j] - 1))
+      for(k in 1:(K[j] - 1)) {
+        NomNames[[j - OrdIndx]][k] <- paste("V", j, "_", k, sep = "")
+      }
+    }
+    VarNames[(OrdIndx + 1):D] <- unlist(NomNames)
+  }
+}
+
+# Shortened version
+VarNames_sht <- as.character(1:D)
+if (!is.null(Ynames)) {
+  VarNames_sht[1:OrdIndx] <- substr(Ynames[1:OrdIndx], 1, 7)
+  
+  if (J > OrdIndx) {
+    NomNames_sht <- list()
+    for (j in (OrdIndx + 1):J) {
+      NomNames_sht[[j - OrdIndx]] <- rep(NA, (K[j] - 1))
+      for(k in 1:(K[j] - 1)) {
+        NomNames_sht[[j - OrdIndx]][k] <- paste(substr(Ynames[j], 1, 7),"_", k, sep = "")
+      }
+    }
+    VarNames_sht[(OrdIndx + 1):D] <- unlist(NomNames_sht)
+  }
+} else {
+  VarNames_sht <- VarNames
+}
+
+# Mixing weights
+pi.vec <- table(ind)/N 
+
+# Mean
+mu <- res_1_high$means
+
+#Covariance
+Sigma <- res_1_high$Sigma
+
+perc.cutoffs <- function(CnsIndx, OrdIndx, Y, N) {
+  perc.cut <- list()
+  for (j in (CnsIndx + 1):OrdIndx) {
+    perc.cut[[j]] <- qnorm(c(0, cumsum(table(Y[, j])/N)))
+  }
+  perc.cut
+}
+
+# Cutoffs for ordinal items
+if (OrdIndx > CnsIndx) {
+  perc.cut <- perc.cutoffs(CnsIndx, OrdIndx, Y, N)
+  zlimits <- array(NA, c(N, J, 2))
+  zlimits[, 1:CnsIndx, 1] <- -Inf
+  zlimits[, 1:CnsIndx, 2] <- Inf
+  for (j in (CnsIndx + 1):OrdIndx) {
+    for (k in 1:K[j]) {
+      zlimits[Y[, j] == k, j, 1] <- perc.cut[[j]][k]
+      zlimits[Y[, j] == k, j, 2] <- perc.cut[[j]][k + 1]
+    }
+  }
+} else {
+  perc.cut <- list()
+  zlimits <- array(NA, c(N, J, 2))
+}
+
+# Define norms
+Nnorms <- 100000
+if (J > OrdIndx) 
+  norms <- MASS::mvrnorm(Nnorms, mu = rep(0, max(K[(OrdIndx + 1):J]) - 1),
+                         Sigma = diag(max(K[(OrdIndx + 1):J]) - 1))
+
+
+z.moments_diag <- function(D, G, N, CnsIndx, OrdIndx, zlimits, mu, Sigma, 
+                           Y, J, K, norms, nom.ind.Z) {
+  D <- J
+  if (J > OrdIndx) 
+    D <- OrdIndx + sum(K[(OrdIndx + 1):J] - 1)
+  
+  Ez.new <- array(NA, c(N, D, G))
+  # S.new <- matrix(0, N, G)
+  S2.new <- array(NA, c(D, D, G, N))
+  probs.new <- NA  #dummy required for output
+  if (J > OrdIndx) 
+    probs.new <- array(NA, c(J - OrdIndx, max(K[(OrdIndx + 1):J]), G))
+  
+  for (g in 1:G) {
+    # continuous
+    if (CnsIndx > 0) 
+      Ez.new[, 1:CnsIndx, ] <- Y[, 1:CnsIndx]
+    
+    # ordinal
+    if (OrdIndx > CnsIndx) {
+      for (i in 1:N) {
+        temp.e <- truncnorm::etruncnorm(a = zlimits[i, (CnsIndx + 1):OrdIndx, 1],
+                                        b = zlimits[i, (CnsIndx + 1):OrdIndx, 2],
+                                        mean = mu[(CnsIndx + 1):OrdIndx, g],
+                                        sd = sqrt(diag(Sigma[, , g])[(CnsIndx + 1):OrdIndx]))
+        
+        Ez.new[i, (CnsIndx + 1):OrdIndx, g] <- temp.e
+        
+        temp.v <- truncnorm::vtruncnorm(a = zlimits[i, (CnsIndx + 1):OrdIndx, 1],
+                                        b = zlimits[i, (CnsIndx + 1):OrdIndx, 2],
+                                        mean = mu[(CnsIndx + 1):OrdIndx, g],
+                                        sd = sqrt(diag(Sigma[, , g])[(CnsIndx + 1):OrdIndx]))
+        
+        S2.new[(CnsIndx + 1):OrdIndx, (CnsIndx + 1):OrdIndx, g, i] <- diag(temp.v + temp.e^2,
+                                                                           nrow=OrdIndx-CnsIndx) 
+      }  # i
+    }  # if
+    
+    # Nominal
+    if (J > OrdIndx) {
+      for (j in (OrdIndx + 1):J) {
+        Zrep <- norms[, 1:(K[j] - 1)] %*% 
+          chol(Sigma[nom.ind.Z[[j - OrdIndx]], nom.ind.Z[[j - OrdIndx]], g]) +
+          matrix(mu[nom.ind.Z[[j - OrdIndx]], g], dim(norms)[1], K[j] - 1, byrow = TRUE)
+        
+        temp.z <- z.nom.diag(Zrep)
+        
+        probs.new[j - OrdIndx, 1:K[j], g] <- temp.z[[1]]
+        
+        for (k in 1:K[j]) {
+          Ez.new[Y[, j] == k, nom.ind.Z[[j - OrdIndx]], g] <-
+            matrix(temp.z[[2]][, k], sum(Y[, j] == k), K[j] - 1, byrow = TRUE)
+          
+          S2.new[nom.ind.Z[[j - OrdIndx]], nom.ind.Z[[j - OrdIndx]], g, Y[, j] == k] <-
+            matrix(diag(diag(temp.z[[3]][, , k])), K[j] - 1, K[j] - 1, byrow = TRUE)
+        }  # k
+      }  # j
+    }  # if
+  }  # g
+  list(Ez.new, probs.new, S2.new)
+}
+
+z.nom.diag <- function(Z) {
+  # Z is a matrix of simulated vectors (each row) y is the jth column of
+  # observed nominal responses
+  yrep <- rep(0, dim(Z)[1])
+  yrep[apply(Z, 1, max) < 0] <- 1
+  yrep[yrep != 1] <- apply(Z[yrep != 1, ], 1, which.max) + 1
+  
+  probs <- as.vector(table(yrep)/dim(Z)[1])
+  
+  if (length(probs) < (dim(Z)[2] + 1)) {
+    cat("ERROR:No Monte Carlo observations generating one or more levels
+        of a nominal variable.", "\n", "Increasing Nnorms may solve this
+        problem.")
+  }
+  
+  Ez_nom <- matrix(NA, dim(Z)[2], dim(Z)[2] + 1)
+  Ezzt_nom <- array(NA, c(dim(Z)[2], dim(Z)[2], dim(Z)[2] + 1))
+  for (k in 1:(dim(Z)[2] + 1)) {
+    Ez_nom[, k] <- colMeans(matrix(Z[yrep == k, ], nrow = sum(yrep == k)))
+    Ezzt_nom[, , k] <- matrix(t(Z[yrep==k,])%*%Z[yrep==k, ]/sum(yrep == k),
+                              dim(Z)[2], dim(Z)[2])
+  }
+  
+  # Returns: 1. Probability of each possible response 2. Expected value of
+  # latent vector for each possible response 3. Expected value of outer
+  # product of latent vector for each possible response
+  list(probs, Ez_nom, Ezzt_nom)
+}
+
+stable.probs <- function(s) {
+  s.max <- max(s)
+  indx <- which.max(s)
+  alpha <- s.max + log(1 + sum(exp(s[-indx] - s.max)))
+  alpha
+}
+
+temp.z <- z.moments_diag(D, G, N, CnsIndx, OrdIndx, zlimits, mu, Sigma, Y,
+                         J, K, norms, nom.ind.Z)
+
+probs.nom <- temp.z[[2]]
+
+# Run first function
+res_1_high_loglik <- ObsLogLikelihood(N, CnsIndx, G, Y, mu, Sigma, pi.vec, patt.indx, 
+zlimits, J, OrdIndx, probs.nom, model, perc.cut, K)
+
+```
+
+
+# Model 2
+```{r}
+# Define the model we're running. This is the same as the clustMD we ran above
+Y <- res_2_high$Y
+N <- nrow(res_2_high$Y)
+J <- ncol(res_2_high$Y)
+G <- 5
+CnsIndx <- 3
+OrdIndx <- 16
+model <- "VVI"
+ind = res_2_high$cl
+
+K <- apply(Y, 2, max)
+if (CnsIndx > 0) 
+  K[1:CnsIndx] <- NA
+D <- J
+if (J > OrdIndx) 
+  D <- OrdIndx + sum(K[(OrdIndx + 1):J] - 1)
+
+# Which dimensions correspond to each item
+if (J > OrdIndx) {
+  nom.ind.Z <- vector("list", J - OrdIndx)
+  for (j in 1:(J - OrdIndx)) {
+    if (j == 1) {
+      start <- OrdIndx + 1
+    } else {
+      start <- OrdIndx + sum(K[(OrdIndx + 1):(OrdIndx + j - 1)] - 1) + 1
+    }
+    finish <- start + K[OrdIndx + j] - 2
+    nom.ind.Z[[j]] <- c(start:finish)
+  }  # j
+}  # if
+
+if ( (model == "BD")&(OrdIndx > CnsIndx) ){
+  if((OrdIndx-CnsIndx)==1){
+    patt.indx <- list()
+    for(p in 1:max(Y[, OrdIndx])) {patt.indx[[p]] <- which(Y[, OrdIndx]==p)}
+  }else{
+    patt.tab <- data.frame(table(data.frame((Y[, (CnsIndx + 1):OrdIndx]))))
+    patt.tab <- patt.tab[patt.tab$Freq != 0, 1:(OrdIndx - CnsIndx)]
+    patt.indx <- list()
+    for (p in 1:nrow(patt.tab)) {
+      patt.indx[[p]] <- which(apply(Y[, (CnsIndx + 1):OrdIndx], 1, patt.equal, patt.tab[p, ]))
+    } # p
+  }
+} # if
+
+Ynames <- colnames(Y)
+VarNames <- as.character(1:D)
+if (!is.null(Ynames)) {
+  VarNames[1:OrdIndx] <- Ynames[1:OrdIndx]
+  
+  if (J > OrdIndx) {
+    NomNames <- list()
+    for (j in (OrdIndx + 1):J) {
+      NomNames[[j - OrdIndx]] <- rep(NA, (K[j] - 1))
+      for(k in 1:(K[j] - 1)) {
+        NomNames[[j - OrdIndx]][k] <- paste(Ynames[j],"_", k, sep = "")
+      }
+    }
+    VarNames[(OrdIndx + 1):D] <- unlist(NomNames)
+  }
+} else {
+  for(j in 1:OrdIndx) {
+    VarNames[j] <- paste("V", j, sep = "")
+  }
+  
+  if (J > OrdIndx) {
+    NomNames <- list()
+    for (j in (OrdIndx + 1):J) {
+      NomNames[[j - OrdIndx]] <- rep(paste("V", j, sep=""), (K[j] - 1))
+      for(k in 1:(K[j] - 1)) {
+        NomNames[[j - OrdIndx]][k] <- paste("V", j, "_", k, sep = "")
+      }
+    }
+    VarNames[(OrdIndx + 1):D] <- unlist(NomNames)
+  }
+}
+
+# Shortened version
+VarNames_sht <- as.character(1:D)
+if (!is.null(Ynames)) {
+  VarNames_sht[1:OrdIndx] <- substr(Ynames[1:OrdIndx], 1, 7)
+  
+  if (J > OrdIndx) {
+    NomNames_sht <- list()
+    for (j in (OrdIndx + 1):J) {
+      NomNames_sht[[j - OrdIndx]] <- rep(NA, (K[j] - 1))
+      for(k in 1:(K[j] - 1)) {
+        NomNames_sht[[j - OrdIndx]][k] <- paste(substr(Ynames[j], 1, 7),"_", k, sep = "")
+      }
+    }
+    VarNames_sht[(OrdIndx + 1):D] <- unlist(NomNames_sht)
+  }
+} else {
+  VarNames_sht <- VarNames
+}
+
+# Mixing weights
+pi.vec <- table(ind)/N 
+
+# Mean
+mu <- res_2_high$means
+
+#Covariance
+Sigma <- res_2_high$Sigma
+
+perc.cutoffs <- function(CnsIndx, OrdIndx, Y, N) {
+  perc.cut <- list()
+  for (j in (CnsIndx + 1):OrdIndx) {
+    perc.cut[[j]] <- qnorm(c(0, cumsum(table(Y[, j])/N)))
+  }
+  perc.cut
+}
+
+# Cutoffs for ordinal items
+if (OrdIndx > CnsIndx) {
+  perc.cut <- perc.cutoffs(CnsIndx, OrdIndx, Y, N)
+  zlimits <- array(NA, c(N, J, 2))
+  zlimits[, 1:CnsIndx, 1] <- -Inf
+  zlimits[, 1:CnsIndx, 2] <- Inf
+  for (j in (CnsIndx + 1):OrdIndx) {
+    for (k in 1:K[j]) {
+      zlimits[Y[, j] == k, j, 1] <- perc.cut[[j]][k]
+      zlimits[Y[, j] == k, j, 2] <- perc.cut[[j]][k + 1]
+    }
+  }
+} else {
+  perc.cut <- list()
+  zlimits <- array(NA, c(N, J, 2))
+}
+
+# Define norms
+Nnorms <- 100000
+if (J > OrdIndx) 
+  norms <- MASS::mvrnorm(Nnorms, mu = rep(0, max(K[(OrdIndx + 1):J]) - 1),
+                         Sigma = diag(max(K[(OrdIndx + 1):J]) - 1))
+
+
+z.moments_diag <- function(D, G, N, CnsIndx, OrdIndx, zlimits, mu, Sigma, 
+                           Y, J, K, norms, nom.ind.Z) {
+  D <- J
+  if (J > OrdIndx) 
+    D <- OrdIndx + sum(K[(OrdIndx + 1):J] - 1)
+  
+  Ez.new <- array(NA, c(N, D, G))
+  # S.new <- matrix(0, N, G)
+  S2.new <- array(NA, c(D, D, G, N))
+  probs.new <- NA  #dummy required for output
+  if (J > OrdIndx) 
+    probs.new <- array(NA, c(J - OrdIndx, max(K[(OrdIndx + 1):J]), G))
+  
+  for (g in 1:G) {
+    # continuous
+    if (CnsIndx > 0) 
+      Ez.new[, 1:CnsIndx, ] <- Y[, 1:CnsIndx]
+    
+    # ordinal
+    if (OrdIndx > CnsIndx) {
+      for (i in 1:N) {
+        temp.e <- truncnorm::etruncnorm(a = zlimits[i, (CnsIndx + 1):OrdIndx, 1],
+                                        b = zlimits[i, (CnsIndx + 1):OrdIndx, 2],
+                                        mean = mu[(CnsIndx + 1):OrdIndx, g],
+                                        sd = sqrt(diag(Sigma[, , g])[(CnsIndx + 1):OrdIndx]))
+        
+        Ez.new[i, (CnsIndx + 1):OrdIndx, g] <- temp.e
+        
+        temp.v <- truncnorm::vtruncnorm(a = zlimits[i, (CnsIndx + 1):OrdIndx, 1],
+                                        b = zlimits[i, (CnsIndx + 1):OrdIndx, 2],
+                                        mean = mu[(CnsIndx + 1):OrdIndx, g],
+                                        sd = sqrt(diag(Sigma[, , g])[(CnsIndx + 1):OrdIndx]))
+        
+        S2.new[(CnsIndx + 1):OrdIndx, (CnsIndx + 1):OrdIndx, g, i] <- diag(temp.v + temp.e^2,
+                                                                           nrow=OrdIndx-CnsIndx) 
+      }  # i
+    }  # if
+    
+    # Nominal
+    if (J > OrdIndx) {
+      for (j in (OrdIndx + 1):J) {
+        Zrep <- norms[, 1:(K[j] - 1)] %*% 
+          chol(Sigma[nom.ind.Z[[j - OrdIndx]], nom.ind.Z[[j - OrdIndx]], g]) +
+          matrix(mu[nom.ind.Z[[j - OrdIndx]], g], dim(norms)[1], K[j] - 1, byrow = TRUE)
+        
+        temp.z <- z.nom.diag(Zrep)
+        
+        probs.new[j - OrdIndx, 1:K[j], g] <- temp.z[[1]]
+        
+        for (k in 1:K[j]) {
+          Ez.new[Y[, j] == k, nom.ind.Z[[j - OrdIndx]], g] <-
+            matrix(temp.z[[2]][, k], sum(Y[, j] == k), K[j] - 1, byrow = TRUE)
+          
+          S2.new[nom.ind.Z[[j - OrdIndx]], nom.ind.Z[[j - OrdIndx]], g, Y[, j] == k] <-
+            matrix(diag(diag(temp.z[[3]][, , k])), K[j] - 1, K[j] - 1, byrow = TRUE)
+        }  # k
+      }  # j
+    }  # if
+  }  # g
+  list(Ez.new, probs.new, S2.new)
+}
+
+z.nom.diag <- function(Z) {
+  # Z is a matrix of simulated vectors (each row) y is the jth column of
+  # observed nominal responses
+  yrep <- rep(0, dim(Z)[1])
+  yrep[apply(Z, 1, max) < 0] <- 1
+  yrep[yrep != 1] <- apply(Z[yrep != 1, ], 1, which.max) + 1
+  
+  probs <- as.vector(table(yrep)/dim(Z)[1])
+  
+  if (length(probs) < (dim(Z)[2] + 1)) {
+    cat("ERROR:No Monte Carlo observations generating one or more levels
+        of a nominal variable.", "\n", "Increasing Nnorms may solve this
+        problem.")
+  }
+  
+  Ez_nom <- matrix(NA, dim(Z)[2], dim(Z)[2] + 1)
+  Ezzt_nom <- array(NA, c(dim(Z)[2], dim(Z)[2], dim(Z)[2] + 1))
+  for (k in 1:(dim(Z)[2] + 1)) {
+    Ez_nom[, k] <- colMeans(matrix(Z[yrep == k, ], nrow = sum(yrep == k)))
+    Ezzt_nom[, , k] <- matrix(t(Z[yrep==k,])%*%Z[yrep==k, ]/sum(yrep == k),
+                              dim(Z)[2], dim(Z)[2])
+  }
+  
+  # Returns: 1. Probability of each possible response 2. Expected value of
+  # latent vector for each possible response 3. Expected value of outer
+  # product of latent vector for each possible response
+  list(probs, Ez_nom, Ezzt_nom)
+}
+
+stable.probs <- function(s) {
+  s.max <- max(s)
+  indx <- which.max(s)
+  alpha <- s.max + log(1 + sum(exp(s[-indx] - s.max)))
+  alpha
+}
+
+temp.z <- z.moments_diag(D, G, N, CnsIndx, OrdIndx, zlimits, mu, Sigma, Y,
+                         J, K, norms, nom.ind.Z)
+
+probs.nom <- temp.z[[2]]
+
+# Run 2nd function
+res_2_high_loglik <- ObsLogLikelihood(N, CnsIndx, G, Y, mu, Sigma, pi.vec, patt.indx, 
+zlimits, J, OrdIndx, probs.nom, model, perc.cut, K)
+
+```
+
+
+# Model 3
+```{r}
+# Define the model we're running. This is the same as the clustMD we ran above
+Y <- res_3_high$Y
+N <- nrow(res_3_high$Y)
+J <- ncol(res_3_high$Y)
+G <- 5
+CnsIndx <- 3
+OrdIndx <- 16
+model <- "VVI"
+ind = res_3_high$cl
+
+K <- apply(Y, 2, max)
+if (CnsIndx > 0) 
+  K[1:CnsIndx] <- NA
+D <- J
+if (J > OrdIndx) 
+  D <- OrdIndx + sum(K[(OrdIndx + 1):J] - 1)
+
+# Which dimensions correspond to each item
+if (J > OrdIndx) {
+  nom.ind.Z <- vector("list", J - OrdIndx)
+  for (j in 1:(J - OrdIndx)) {
+    if (j == 1) {
+      start <- OrdIndx + 1
+    } else {
+      start <- OrdIndx + sum(K[(OrdIndx + 1):(OrdIndx + j - 1)] - 1) + 1
+    }
+    finish <- start + K[OrdIndx + j] - 2
+    nom.ind.Z[[j]] <- c(start:finish)
+  }  # j
+}  # if
+
+if ( (model == "BD")&(OrdIndx > CnsIndx) ){
+  if((OrdIndx-CnsIndx)==1){
+    patt.indx <- list()
+    for(p in 1:max(Y[, OrdIndx])) {patt.indx[[p]] <- which(Y[, OrdIndx]==p)}
+  }else{
+    patt.tab <- data.frame(table(data.frame((Y[, (CnsIndx + 1):OrdIndx]))))
+    patt.tab <- patt.tab[patt.tab$Freq != 0, 1:(OrdIndx - CnsIndx)]
+    patt.indx <- list()
+    for (p in 1:nrow(patt.tab)) {
+      patt.indx[[p]] <- which(apply(Y[, (CnsIndx + 1):OrdIndx], 1, patt.equal, patt.tab[p, ]))
+    } # p
+  }
+} # if
+
+Ynames <- colnames(Y)
+VarNames <- as.character(1:D)
+if (!is.null(Ynames)) {
+  VarNames[1:OrdIndx] <- Ynames[1:OrdIndx]
+  
+  if (J > OrdIndx) {
+    NomNames <- list()
+    for (j in (OrdIndx + 1):J) {
+      NomNames[[j - OrdIndx]] <- rep(NA, (K[j] - 1))
+      for(k in 1:(K[j] - 1)) {
+        NomNames[[j - OrdIndx]][k] <- paste(Ynames[j],"_", k, sep = "")
+      }
+    }
+    VarNames[(OrdIndx + 1):D] <- unlist(NomNames)
+  }
+} else {
+  for(j in 1:OrdIndx) {
+    VarNames[j] <- paste("V", j, sep = "")
+  }
+  
+  if (J > OrdIndx) {
+    NomNames <- list()
+    for (j in (OrdIndx + 1):J) {
+      NomNames[[j - OrdIndx]] <- rep(paste("V", j, sep=""), (K[j] - 1))
+      for(k in 1:(K[j] - 1)) {
+        NomNames[[j - OrdIndx]][k] <- paste("V", j, "_", k, sep = "")
+      }
+    }
+    VarNames[(OrdIndx + 1):D] <- unlist(NomNames)
+  }
+}
+
+# Shortened version
+VarNames_sht <- as.character(1:D)
+if (!is.null(Ynames)) {
+  VarNames_sht[1:OrdIndx] <- substr(Ynames[1:OrdIndx], 1, 7)
+  
+  if (J > OrdIndx) {
+    NomNames_sht <- list()
+    for (j in (OrdIndx + 1):J) {
+      NomNames_sht[[j - OrdIndx]] <- rep(NA, (K[j] - 1))
+      for(k in 1:(K[j] - 1)) {
+        NomNames_sht[[j - OrdIndx]][k] <- paste(substr(Ynames[j], 1, 7),"_", k, sep = "")
+      }
+    }
+    VarNames_sht[(OrdIndx + 1):D] <- unlist(NomNames_sht)
+  }
+} else {
+  VarNames_sht <- VarNames
+}
+
+# Mixing weights
+pi.vec <- table(ind)/N 
+
+# Mean
+mu <- res_3_high$means
+
+#Covariance
+Sigma <- res_3_high$Sigma
+
+perc.cutoffs <- function(CnsIndx, OrdIndx, Y, N) {
+  perc.cut <- list()
+  for (j in (CnsIndx + 1):OrdIndx) {
+    perc.cut[[j]] <- qnorm(c(0, cumsum(table(Y[, j])/N)))
+  }
+  perc.cut
+}
+
+# Cutoffs for ordinal items
+if (OrdIndx > CnsIndx) {
+  perc.cut <- perc.cutoffs(CnsIndx, OrdIndx, Y, N)
+  zlimits <- array(NA, c(N, J, 2))
+  zlimits[, 1:CnsIndx, 1] <- -Inf
+  zlimits[, 1:CnsIndx, 2] <- Inf
+  for (j in (CnsIndx + 1):OrdIndx) {
+    for (k in 1:K[j]) {
+      zlimits[Y[, j] == k, j, 1] <- perc.cut[[j]][k]
+      zlimits[Y[, j] == k, j, 2] <- perc.cut[[j]][k + 1]
+    }
+  }
+} else {
+  perc.cut <- list()
+  zlimits <- array(NA, c(N, J, 2))
+}
+
+# Define norms
+Nnorms <- 100000
+if (J > OrdIndx) 
+  norms <- MASS::mvrnorm(Nnorms, mu = rep(0, max(K[(OrdIndx + 1):J]) - 1),
+                         Sigma = diag(max(K[(OrdIndx + 1):J]) - 1))
+
+
+z.moments_diag <- function(D, G, N, CnsIndx, OrdIndx, zlimits, mu, Sigma, 
+                           Y, J, K, norms, nom.ind.Z) {
+  D <- J
+  if (J > OrdIndx) 
+    D <- OrdIndx + sum(K[(OrdIndx + 1):J] - 1)
+  
+  Ez.new <- array(NA, c(N, D, G))
+  # S.new <- matrix(0, N, G)
+  S2.new <- array(NA, c(D, D, G, N))
+  probs.new <- NA  #dummy required for output
+  if (J > OrdIndx) 
+    probs.new <- array(NA, c(J - OrdIndx, max(K[(OrdIndx + 1):J]), G))
+  
+  for (g in 1:G) {
+    # continuous
+    if (CnsIndx > 0) 
+      Ez.new[, 1:CnsIndx, ] <- Y[, 1:CnsIndx]
+    
+    # ordinal
+    if (OrdIndx > CnsIndx) {
+      for (i in 1:N) {
+        temp.e <- truncnorm::etruncnorm(a = zlimits[i, (CnsIndx + 1):OrdIndx, 1],
+                                        b = zlimits[i, (CnsIndx + 1):OrdIndx, 2],
+                                        mean = mu[(CnsIndx + 1):OrdIndx, g],
+                                        sd = sqrt(diag(Sigma[, , g])[(CnsIndx + 1):OrdIndx]))
+        
+        Ez.new[i, (CnsIndx + 1):OrdIndx, g] <- temp.e
+        
+        temp.v <- truncnorm::vtruncnorm(a = zlimits[i, (CnsIndx + 1):OrdIndx, 1],
+                                        b = zlimits[i, (CnsIndx + 1):OrdIndx, 2],
+                                        mean = mu[(CnsIndx + 1):OrdIndx, g],
+                                        sd = sqrt(diag(Sigma[, , g])[(CnsIndx + 1):OrdIndx]))
+        
+        S2.new[(CnsIndx + 1):OrdIndx, (CnsIndx + 1):OrdIndx, g, i] <- diag(temp.v + temp.e^2,
+                                                                           nrow=OrdIndx-CnsIndx) 
+      }  # i
+    }  # if
+    
+    # Nominal
+    if (J > OrdIndx) {
+      for (j in (OrdIndx + 1):J) {
+        Zrep <- norms[, 1:(K[j] - 1)] %*% 
+          chol(Sigma[nom.ind.Z[[j - OrdIndx]], nom.ind.Z[[j - OrdIndx]], g]) +
+          matrix(mu[nom.ind.Z[[j - OrdIndx]], g], dim(norms)[1], K[j] - 1, byrow = TRUE)
+        
+        temp.z <- z.nom.diag(Zrep)
+        
+        probs.new[j - OrdIndx, 1:K[j], g] <- temp.z[[1]]
+        
+        for (k in 1:K[j]) {
+          Ez.new[Y[, j] == k, nom.ind.Z[[j - OrdIndx]], g] <-
+            matrix(temp.z[[2]][, k], sum(Y[, j] == k), K[j] - 1, byrow = TRUE)
+          
+          S2.new[nom.ind.Z[[j - OrdIndx]], nom.ind.Z[[j - OrdIndx]], g, Y[, j] == k] <-
+            matrix(diag(diag(temp.z[[3]][, , k])), K[j] - 1, K[j] - 1, byrow = TRUE)
+        }  # k
+      }  # j
+    }  # if
+  }  # g
+  list(Ez.new, probs.new, S2.new)
+}
+
+z.nom.diag <- function(Z) {
+  # Z is a matrix of simulated vectors (each row) y is the jth column of
+  # observed nominal responses
+  yrep <- rep(0, dim(Z)[1])
+  yrep[apply(Z, 1, max) < 0] <- 1
+  yrep[yrep != 1] <- apply(Z[yrep != 1, ], 1, which.max) + 1
+  
+  probs <- as.vector(table(yrep)/dim(Z)[1])
+  
+  if (length(probs) < (dim(Z)[2] + 1)) {
+    cat("ERROR:No Monte Carlo observations generating one or more levels
+        of a nominal variable.", "\n", "Increasing Nnorms may solve this
+        problem.")
+  }
+  
+  Ez_nom <- matrix(NA, dim(Z)[2], dim(Z)[2] + 1)
+  Ezzt_nom <- array(NA, c(dim(Z)[2], dim(Z)[2], dim(Z)[2] + 1))
+  for (k in 1:(dim(Z)[2] + 1)) {
+    Ez_nom[, k] <- colMeans(matrix(Z[yrep == k, ], nrow = sum(yrep == k)))
+    Ezzt_nom[, , k] <- matrix(t(Z[yrep==k,])%*%Z[yrep==k, ]/sum(yrep == k),
+                              dim(Z)[2], dim(Z)[2])
+  }
+  
+  # Returns: 1. Probability of each possible response 2. Expected value of
+  # latent vector for each possible response 3. Expected value of outer
+  # product of latent vector for each possible response
+  list(probs, Ez_nom, Ezzt_nom)
+}
+
+stable.probs <- function(s) {
+  s.max <- max(s)
+  indx <- which.max(s)
+  alpha <- s.max + log(1 + sum(exp(s[-indx] - s.max)))
+  alpha
+}
+
+temp.z <- z.moments_diag(D, G, N, CnsIndx, OrdIndx, zlimits, mu, Sigma, Y,
+                         J, K, norms, nom.ind.Z)
+
+probs.nom <- temp.z[[2]]
+
+# Run 2nd function
+res_3_high_loglik <- ObsLogLikelihood(N, CnsIndx, G, Y, mu, Sigma, pi.vec, patt.indx, 
+zlimits, J, OrdIndx, probs.nom, model, perc.cut, K)
+
+```
+
+
+# Model 4
+```{r}
+# Define the model we're running. This is the same as the clustMD we ran above
+Y <- res_4_high$Y
+N <- nrow(res_4_high$Y)
+J <- ncol(res_4_high$Y)
+G <- 5
+CnsIndx <- 3
+OrdIndx <- 16
+model <- "VVI"
+ind = res_4_high$cl
+
+K <- apply(Y, 2, max)
+if (CnsIndx > 0) 
+  K[1:CnsIndx] <- NA
+D <- J
+if (J > OrdIndx) 
+  D <- OrdIndx + sum(K[(OrdIndx + 1):J] - 1)
+
+# Which dimensions correspond to each item
+if (J > OrdIndx) {
+  nom.ind.Z <- vector("list", J - OrdIndx)
+  for (j in 1:(J - OrdIndx)) {
+    if (j == 1) {
+      start <- OrdIndx + 1
+    } else {
+      start <- OrdIndx + sum(K[(OrdIndx + 1):(OrdIndx + j - 1)] - 1) + 1
+    }
+    finish <- start + K[OrdIndx + j] - 2
+    nom.ind.Z[[j]] <- c(start:finish)
+  }  # j
+}  # if
+
+if ( (model == "BD")&(OrdIndx > CnsIndx) ){
+  if((OrdIndx-CnsIndx)==1){
+    patt.indx <- list()
+    for(p in 1:max(Y[, OrdIndx])) {patt.indx[[p]] <- which(Y[, OrdIndx]==p)}
+  }else{
+    patt.tab <- data.frame(table(data.frame((Y[, (CnsIndx + 1):OrdIndx]))))
+    patt.tab <- patt.tab[patt.tab$Freq != 0, 1:(OrdIndx - CnsIndx)]
+    patt.indx <- list()
+    for (p in 1:nrow(patt.tab)) {
+      patt.indx[[p]] <- which(apply(Y[, (CnsIndx + 1):OrdIndx], 1, patt.equal, patt.tab[p, ]))
+    } # p
+  }
+} # if
+
+Ynames <- colnames(Y)
+VarNames <- as.character(1:D)
+if (!is.null(Ynames)) {
+  VarNames[1:OrdIndx] <- Ynames[1:OrdIndx]
+  
+  if (J > OrdIndx) {
+    NomNames <- list()
+    for (j in (OrdIndx + 1):J) {
+      NomNames[[j - OrdIndx]] <- rep(NA, (K[j] - 1))
+      for(k in 1:(K[j] - 1)) {
+        NomNames[[j - OrdIndx]][k] <- paste(Ynames[j],"_", k, sep = "")
+      }
+    }
+    VarNames[(OrdIndx + 1):D] <- unlist(NomNames)
+  }
+} else {
+  for(j in 1:OrdIndx) {
+    VarNames[j] <- paste("V", j, sep = "")
+  }
+  
+  if (J > OrdIndx) {
+    NomNames <- list()
+    for (j in (OrdIndx + 1):J) {
+      NomNames[[j - OrdIndx]] <- rep(paste("V", j, sep=""), (K[j] - 1))
+      for(k in 1:(K[j] - 1)) {
+        NomNames[[j - OrdIndx]][k] <- paste("V", j, "_", k, sep = "")
+      }
+    }
+    VarNames[(OrdIndx + 1):D] <- unlist(NomNames)
+  }
+}
+
+# Shortened version
+VarNames_sht <- as.character(1:D)
+if (!is.null(Ynames)) {
+  VarNames_sht[1:OrdIndx] <- substr(Ynames[1:OrdIndx], 1, 7)
+  
+  if (J > OrdIndx) {
+    NomNames_sht <- list()
+    for (j in (OrdIndx + 1):J) {
+      NomNames_sht[[j - OrdIndx]] <- rep(NA, (K[j] - 1))
+      for(k in 1:(K[j] - 1)) {
+        NomNames_sht[[j - OrdIndx]][k] <- paste(substr(Ynames[j], 1, 7),"_", k, sep = "")
+      }
+    }
+    VarNames_sht[(OrdIndx + 1):D] <- unlist(NomNames_sht)
+  }
+} else {
+  VarNames_sht <- VarNames
+}
+
+# Mixing weights
+pi.vec <- table(ind)/N 
+
+# Mean
+mu <- res_4_high$means
+
+#Covariance
+Sigma <- res_4_high$Sigma
+
+perc.cutoffs <- function(CnsIndx, OrdIndx, Y, N) {
+  perc.cut <- list()
+  for (j in (CnsIndx + 1):OrdIndx) {
+    perc.cut[[j]] <- qnorm(c(0, cumsum(table(Y[, j])/N)))
+  }
+  perc.cut
+}
+
+# Cutoffs for ordinal items
+if (OrdIndx > CnsIndx) {
+  perc.cut <- perc.cutoffs(CnsIndx, OrdIndx, Y, N)
+  zlimits <- array(NA, c(N, J, 2))
+  zlimits[, 1:CnsIndx, 1] <- -Inf
+  zlimits[, 1:CnsIndx, 2] <- Inf
+  for (j in (CnsIndx + 1):OrdIndx) {
+    for (k in 1:K[j]) {
+      zlimits[Y[, j] == k, j, 1] <- perc.cut[[j]][k]
+      zlimits[Y[, j] == k, j, 2] <- perc.cut[[j]][k + 1]
+    }
+  }
+} else {
+  perc.cut <- list()
+  zlimits <- array(NA, c(N, J, 2))
+}
+
+# Define norms
+Nnorms <- 100000
+if (J > OrdIndx) 
+  norms <- MASS::mvrnorm(Nnorms, mu = rep(0, max(K[(OrdIndx + 1):J]) - 1),
+                         Sigma = diag(max(K[(OrdIndx + 1):J]) - 1))
+
+
+z.moments_diag <- function(D, G, N, CnsIndx, OrdIndx, zlimits, mu, Sigma, 
+                           Y, J, K, norms, nom.ind.Z) {
+  D <- J
+  if (J > OrdIndx) 
+    D <- OrdIndx + sum(K[(OrdIndx + 1):J] - 1)
+  
+  Ez.new <- array(NA, c(N, D, G))
+  # S.new <- matrix(0, N, G)
+  S2.new <- array(NA, c(D, D, G, N))
+  probs.new <- NA  #dummy required for output
+  if (J > OrdIndx) 
+    probs.new <- array(NA, c(J - OrdIndx, max(K[(OrdIndx + 1):J]), G))
+  
+  for (g in 1:G) {
+    # continuous
+    if (CnsIndx > 0) 
+      Ez.new[, 1:CnsIndx, ] <- Y[, 1:CnsIndx]
+    
+    # ordinal
+    if (OrdIndx > CnsIndx) {
+      for (i in 1:N) {
+        temp.e <- truncnorm::etruncnorm(a = zlimits[i, (CnsIndx + 1):OrdIndx, 1],
+                                        b = zlimits[i, (CnsIndx + 1):OrdIndx, 2],
+                                        mean = mu[(CnsIndx + 1):OrdIndx, g],
+                                        sd = sqrt(diag(Sigma[, , g])[(CnsIndx + 1):OrdIndx]))
+        
+        Ez.new[i, (CnsIndx + 1):OrdIndx, g] <- temp.e
+        
+        temp.v <- truncnorm::vtruncnorm(a = zlimits[i, (CnsIndx + 1):OrdIndx, 1],
+                                        b = zlimits[i, (CnsIndx + 1):OrdIndx, 2],
+                                        mean = mu[(CnsIndx + 1):OrdIndx, g],
+                                        sd = sqrt(diag(Sigma[, , g])[(CnsIndx + 1):OrdIndx]))
+        
+        S2.new[(CnsIndx + 1):OrdIndx, (CnsIndx + 1):OrdIndx, g, i] <- diag(temp.v + temp.e^2,
+                                                                           nrow=OrdIndx-CnsIndx) 
+      }  # i
+    }  # if
+    
+    # Nominal
+    if (J > OrdIndx) {
+      for (j in (OrdIndx + 1):J) {
+        Zrep <- norms[, 1:(K[j] - 1)] %*% 
+          chol(Sigma[nom.ind.Z[[j - OrdIndx]], nom.ind.Z[[j - OrdIndx]], g]) +
+          matrix(mu[nom.ind.Z[[j - OrdIndx]], g], dim(norms)[1], K[j] - 1, byrow = TRUE)
+        
+        temp.z <- z.nom.diag(Zrep)
+        
+        probs.new[j - OrdIndx, 1:K[j], g] <- temp.z[[1]]
+        
+        for (k in 1:K[j]) {
+          Ez.new[Y[, j] == k, nom.ind.Z[[j - OrdIndx]], g] <-
+            matrix(temp.z[[2]][, k], sum(Y[, j] == k), K[j] - 1, byrow = TRUE)
+          
+          S2.new[nom.ind.Z[[j - OrdIndx]], nom.ind.Z[[j - OrdIndx]], g, Y[, j] == k] <-
+            matrix(diag(diag(temp.z[[3]][, , k])), K[j] - 1, K[j] - 1, byrow = TRUE)
+        }  # k
+      }  # j
+    }  # if
+  }  # g
+  list(Ez.new, probs.new, S2.new)
+}
+
+z.nom.diag <- function(Z) {
+  # Z is a matrix of simulated vectors (each row) y is the jth column of
+  # observed nominal responses
+  yrep <- rep(0, dim(Z)[1])
+  yrep[apply(Z, 1, max) < 0] <- 1
+  yrep[yrep != 1] <- apply(Z[yrep != 1, ], 1, which.max) + 1
+  
+  probs <- as.vector(table(yrep)/dim(Z)[1])
+  
+  if (length(probs) < (dim(Z)[2] + 1)) {
+    cat("ERROR:No Monte Carlo observations generating one or more levels
+        of a nominal variable.", "\n", "Increasing Nnorms may solve this
+        problem.")
+  }
+  
+  Ez_nom <- matrix(NA, dim(Z)[2], dim(Z)[2] + 1)
+  Ezzt_nom <- array(NA, c(dim(Z)[2], dim(Z)[2], dim(Z)[2] + 1))
+  for (k in 1:(dim(Z)[2] + 1)) {
+    Ez_nom[, k] <- colMeans(matrix(Z[yrep == k, ], nrow = sum(yrep == k)))
+    Ezzt_nom[, , k] <- matrix(t(Z[yrep==k,])%*%Z[yrep==k, ]/sum(yrep == k),
+                              dim(Z)[2], dim(Z)[2])
+  }
+  
+  # Returns: 1. Probability of each possible response 2. Expected value of
+  # latent vector for each possible response 3. Expected value of outer
+  # product of latent vector for each possible response
+  list(probs, Ez_nom, Ezzt_nom)
+}
+
+stable.probs <- function(s) {
+  s.max <- max(s)
+  indx <- which.max(s)
+  alpha <- s.max + log(1 + sum(exp(s[-indx] - s.max)))
+  alpha
+}
+
+temp.z <- z.moments_diag(D, G, N, CnsIndx, OrdIndx, zlimits, mu, Sigma, Y,
+                         J, K, norms, nom.ind.Z)
+
+probs.nom <- temp.z[[2]]
+
+# Run 2nd function
+res_4_high_loglik <- ObsLogLikelihood(N, CnsIndx, G, Y, mu, Sigma, pi.vec, patt.indx, 
+zlimits, J, OrdIndx, probs.nom, model, perc.cut, K)
+
+```
+
+# Model 5
+```{r}
+# Define the model we're running. This is the same as the clustMD we ran above
+Y <- res_5_high$Y
+N <- nrow(res_5_high$Y)
+J <- ncol(res_5_high$Y)
+G <- 5
+CnsIndx <- 3
+OrdIndx <- 16
+model <- "VVI"
+ind = res_5_high$cl
+
+K <- apply(Y, 2, max)
+if (CnsIndx > 0) 
+  K[1:CnsIndx] <- NA
+D <- J
+if (J > OrdIndx) 
+  D <- OrdIndx + sum(K[(OrdIndx + 1):J] - 1)
+
+# Which dimensions correspond to each item
+if (J > OrdIndx) {
+  nom.ind.Z <- vector("list", J - OrdIndx)
+  for (j in 1:(J - OrdIndx)) {
+    if (j == 1) {
+      start <- OrdIndx + 1
+    } else {
+      start <- OrdIndx + sum(K[(OrdIndx + 1):(OrdIndx + j - 1)] - 1) + 1
+    }
+    finish <- start + K[OrdIndx + j] - 2
+    nom.ind.Z[[j]] <- c(start:finish)
+  }  # j
+}  # if
+
+if ( (model == "BD")&(OrdIndx > CnsIndx) ){
+  if((OrdIndx-CnsIndx)==1){
+    patt.indx <- list()
+    for(p in 1:max(Y[, OrdIndx])) {patt.indx[[p]] <- which(Y[, OrdIndx]==p)}
+  }else{
+    patt.tab <- data.frame(table(data.frame((Y[, (CnsIndx + 1):OrdIndx]))))
+    patt.tab <- patt.tab[patt.tab$Freq != 0, 1:(OrdIndx - CnsIndx)]
+    patt.indx <- list()
+    for (p in 1:nrow(patt.tab)) {
+      patt.indx[[p]] <- which(apply(Y[, (CnsIndx + 1):OrdIndx], 1, patt.equal, patt.tab[p, ]))
+    } # p
+  }
+} # if
+
+Ynames <- colnames(Y)
+VarNames <- as.character(1:D)
+if (!is.null(Ynames)) {
+  VarNames[1:OrdIndx] <- Ynames[1:OrdIndx]
+  
+  if (J > OrdIndx) {
+    NomNames <- list()
+    for (j in (OrdIndx + 1):J) {
+      NomNames[[j - OrdIndx]] <- rep(NA, (K[j] - 1))
+      for(k in 1:(K[j] - 1)) {
+        NomNames[[j - OrdIndx]][k] <- paste(Ynames[j],"_", k, sep = "")
+      }
+    }
+    VarNames[(OrdIndx + 1):D] <- unlist(NomNames)
+  }
+} else {
+  for(j in 1:OrdIndx) {
+    VarNames[j] <- paste("V", j, sep = "")
+  }
+  
+  if (J > OrdIndx) {
+    NomNames <- list()
+    for (j in (OrdIndx + 1):J) {
+      NomNames[[j - OrdIndx]] <- rep(paste("V", j, sep=""), (K[j] - 1))
+      for(k in 1:(K[j] - 1)) {
+        NomNames[[j - OrdIndx]][k] <- paste("V", j, "_", k, sep = "")
+      }
+    }
+    VarNames[(OrdIndx + 1):D] <- unlist(NomNames)
+  }
+}
+
+# Shortened version
+VarNames_sht <- as.character(1:D)
+if (!is.null(Ynames)) {
+  VarNames_sht[1:OrdIndx] <- substr(Ynames[1:OrdIndx], 1, 7)
+  
+  if (J > OrdIndx) {
+    NomNames_sht <- list()
+    for (j in (OrdIndx + 1):J) {
+      NomNames_sht[[j - OrdIndx]] <- rep(NA, (K[j] - 1))
+      for(k in 1:(K[j] - 1)) {
+        NomNames_sht[[j - OrdIndx]][k] <- paste(substr(Ynames[j], 1, 7),"_", k, sep = "")
+      }
+    }
+    VarNames_sht[(OrdIndx + 1):D] <- unlist(NomNames_sht)
+  }
+} else {
+  VarNames_sht <- VarNames
+}
+
+# Mixing weights
+pi.vec <- table(ind)/N 
+
+# Mean
+mu <- res_5_high$means
+
+#Covariance
+Sigma <- res_5_high$Sigma
+
+perc.cutoffs <- function(CnsIndx, OrdIndx, Y, N) {
+  perc.cut <- list()
+  for (j in (CnsIndx + 1):OrdIndx) {
+    perc.cut[[j]] <- qnorm(c(0, cumsum(table(Y[, j])/N)))
+  }
+  perc.cut
+}
+
+# Cutoffs for ordinal items
+if (OrdIndx > CnsIndx) {
+  perc.cut <- perc.cutoffs(CnsIndx, OrdIndx, Y, N)
+  zlimits <- array(NA, c(N, J, 2))
+  zlimits[, 1:CnsIndx, 1] <- -Inf
+  zlimits[, 1:CnsIndx, 2] <- Inf
+  for (j in (CnsIndx + 1):OrdIndx) {
+    for (k in 1:K[j]) {
+      zlimits[Y[, j] == k, j, 1] <- perc.cut[[j]][k]
+      zlimits[Y[, j] == k, j, 2] <- perc.cut[[j]][k + 1]
+    }
+  }
+} else {
+  perc.cut <- list()
+  zlimits <- array(NA, c(N, J, 2))
+}
+
+# Define norms
+Nnorms <- 100000
+if (J > OrdIndx) 
+  norms <- MASS::mvrnorm(Nnorms, mu = rep(0, max(K[(OrdIndx + 1):J]) - 1),
+                         Sigma = diag(max(K[(OrdIndx + 1):J]) - 1))
+
+
+z.moments_diag <- function(D, G, N, CnsIndx, OrdIndx, zlimits, mu, Sigma, 
+                           Y, J, K, norms, nom.ind.Z) {
+  D <- J
+  if (J > OrdIndx) 
+    D <- OrdIndx + sum(K[(OrdIndx + 1):J] - 1)
+  
+  Ez.new <- array(NA, c(N, D, G))
+  # S.new <- matrix(0, N, G)
+  S2.new <- array(NA, c(D, D, G, N))
+  probs.new <- NA  #dummy required for output
+  if (J > OrdIndx) 
+    probs.new <- array(NA, c(J - OrdIndx, max(K[(OrdIndx + 1):J]), G))
+  
+  for (g in 1:G) {
+    # continuous
+    if (CnsIndx > 0) 
+      Ez.new[, 1:CnsIndx, ] <- Y[, 1:CnsIndx]
+    
+    # ordinal
+    if (OrdIndx > CnsIndx) {
+      for (i in 1:N) {
+        temp.e <- truncnorm::etruncnorm(a = zlimits[i, (CnsIndx + 1):OrdIndx, 1],
+                                        b = zlimits[i, (CnsIndx + 1):OrdIndx, 2],
+                                        mean = mu[(CnsIndx + 1):OrdIndx, g],
+                                        sd = sqrt(diag(Sigma[, , g])[(CnsIndx + 1):OrdIndx]))
+        
+        Ez.new[i, (CnsIndx + 1):OrdIndx, g] <- temp.e
+        
+        temp.v <- truncnorm::vtruncnorm(a = zlimits[i, (CnsIndx + 1):OrdIndx, 1],
+                                        b = zlimits[i, (CnsIndx + 1):OrdIndx, 2],
+                                        mean = mu[(CnsIndx + 1):OrdIndx, g],
+                                        sd = sqrt(diag(Sigma[, , g])[(CnsIndx + 1):OrdIndx]))
+        
+        S2.new[(CnsIndx + 1):OrdIndx, (CnsIndx + 1):OrdIndx, g, i] <- diag(temp.v + temp.e^2,
+                                                                           nrow=OrdIndx-CnsIndx) 
+      }  # i
+    }  # if
+    
+    # Nominal
+    if (J > OrdIndx) {
+      for (j in (OrdIndx + 1):J) {
+        Zrep <- norms[, 1:(K[j] - 1)] %*% 
+          chol(Sigma[nom.ind.Z[[j - OrdIndx]], nom.ind.Z[[j - OrdIndx]], g]) +
+          matrix(mu[nom.ind.Z[[j - OrdIndx]], g], dim(norms)[1], K[j] - 1, byrow = TRUE)
+        
+        temp.z <- z.nom.diag(Zrep)
+        
+        probs.new[j - OrdIndx, 1:K[j], g] <- temp.z[[1]]
+        
+        for (k in 1:K[j]) {
+          Ez.new[Y[, j] == k, nom.ind.Z[[j - OrdIndx]], g] <-
+            matrix(temp.z[[2]][, k], sum(Y[, j] == k), K[j] - 1, byrow = TRUE)
+          
+          S2.new[nom.ind.Z[[j - OrdIndx]], nom.ind.Z[[j - OrdIndx]], g, Y[, j] == k] <-
+            matrix(diag(diag(temp.z[[3]][, , k])), K[j] - 1, K[j] - 1, byrow = TRUE)
+        }  # k
+      }  # j
+    }  # if
+  }  # g
+  list(Ez.new, probs.new, S2.new)
+}
+
+z.nom.diag <- function(Z) {
+  # Z is a matrix of simulated vectors (each row) y is the jth column of
+  # observed nominal responses
+  yrep <- rep(0, dim(Z)[1])
+  yrep[apply(Z, 1, max) < 0] <- 1
+  yrep[yrep != 1] <- apply(Z[yrep != 1, ], 1, which.max) + 1
+  
+  probs <- as.vector(table(yrep)/dim(Z)[1])
+  
+  if (length(probs) < (dim(Z)[2] + 1)) {
+    cat("ERROR:No Monte Carlo observations generating one or more levels
+        of a nominal variable.", "\n", "Increasing Nnorms may solve this
+        problem.")
+  }
+  
+  Ez_nom <- matrix(NA, dim(Z)[2], dim(Z)[2] + 1)
+  Ezzt_nom <- array(NA, c(dim(Z)[2], dim(Z)[2], dim(Z)[2] + 1))
+  for (k in 1:(dim(Z)[2] + 1)) {
+    Ez_nom[, k] <- colMeans(matrix(Z[yrep == k, ], nrow = sum(yrep == k)))
+    Ezzt_nom[, , k] <- matrix(t(Z[yrep==k,])%*%Z[yrep==k, ]/sum(yrep == k),
+                              dim(Z)[2], dim(Z)[2])
+  }
+  
+  # Returns: 1. Probability of each possible response 2. Expected value of
+  # latent vector for each possible response 3. Expected value of outer
+  # product of latent vector for each possible response
+  list(probs, Ez_nom, Ezzt_nom)
+}
+
+stable.probs <- function(s) {
+  s.max <- max(s)
+  indx <- which.max(s)
+  alpha <- s.max + log(1 + sum(exp(s[-indx] - s.max)))
+  alpha
+}
+
+temp.z <- z.moments_diag(D, G, N, CnsIndx, OrdIndx, zlimits, mu, Sigma, Y,
+                         J, K, norms, nom.ind.Z)
+
+probs.nom <- temp.z[[2]]
+
+# Run 2nd function
+res_5_high_loglik <- ObsLogLikelihood(N, CnsIndx, G, Y, mu, Sigma, pi.vec, patt.indx, 
+zlimits, J, OrdIndx, probs.nom, model, perc.cut, K)
+
+```
+
+
+
+# Model 6
+```{r}
+# Define the model we're running. This is the same as the clustMD we ran above
+Y <- res_6_high$Y
+N <- nrow(res_6_high$Y)
+J <- ncol(res_6_high$Y)
+G <- 5
+CnsIndx <- 3
+OrdIndx <- 16
+model <- "VVI"
+ind = res_6_high$cl
+
+K <- apply(Y, 2, max)
+if (CnsIndx > 0) 
+  K[1:CnsIndx] <- NA
+D <- J
+if (J > OrdIndx) 
+  D <- OrdIndx + sum(K[(OrdIndx + 1):J] - 1)
+
+# Which dimensions correspond to each item
+if (J > OrdIndx) {
+  nom.ind.Z <- vector("list", J - OrdIndx)
+  for (j in 1:(J - OrdIndx)) {
+    if (j == 1) {
+      start <- OrdIndx + 1
+    } else {
+      start <- OrdIndx + sum(K[(OrdIndx + 1):(OrdIndx + j - 1)] - 1) + 1
+    }
+    finish <- start + K[OrdIndx + j] - 2
+    nom.ind.Z[[j]] <- c(start:finish)
+  }  # j
+}  # if
+
+if ( (model == "BD")&(OrdIndx > CnsIndx) ){
+  if((OrdIndx-CnsIndx)==1){
+    patt.indx <- list()
+    for(p in 1:max(Y[, OrdIndx])) {patt.indx[[p]] <- which(Y[, OrdIndx]==p)}
+  }else{
+    patt.tab <- data.frame(table(data.frame((Y[, (CnsIndx + 1):OrdIndx]))))
+    patt.tab <- patt.tab[patt.tab$Freq != 0, 1:(OrdIndx - CnsIndx)]
+    patt.indx <- list()
+    for (p in 1:nrow(patt.tab)) {
+      patt.indx[[p]] <- which(apply(Y[, (CnsIndx + 1):OrdIndx], 1, patt.equal, patt.tab[p, ]))
+    } # p
+  }
+} # if
+
+Ynames <- colnames(Y)
+VarNames <- as.character(1:D)
+if (!is.null(Ynames)) {
+  VarNames[1:OrdIndx] <- Ynames[1:OrdIndx]
+  
+  if (J > OrdIndx) {
+    NomNames <- list()
+    for (j in (OrdIndx + 1):J) {
+      NomNames[[j - OrdIndx]] <- rep(NA, (K[j] - 1))
+      for(k in 1:(K[j] - 1)) {
+        NomNames[[j - OrdIndx]][k] <- paste(Ynames[j],"_", k, sep = "")
+      }
+    }
+    VarNames[(OrdIndx + 1):D] <- unlist(NomNames)
+  }
+} else {
+  for(j in 1:OrdIndx) {
+    VarNames[j] <- paste("V", j, sep = "")
+  }
+  
+  if (J > OrdIndx) {
+    NomNames <- list()
+    for (j in (OrdIndx + 1):J) {
+      NomNames[[j - OrdIndx]] <- rep(paste("V", j, sep=""), (K[j] - 1))
+      for(k in 1:(K[j] - 1)) {
+        NomNames[[j - OrdIndx]][k] <- paste("V", j, "_", k, sep = "")
+      }
+    }
+    VarNames[(OrdIndx + 1):D] <- unlist(NomNames)
+  }
+}
+
+# Shortened version
+VarNames_sht <- as.character(1:D)
+if (!is.null(Ynames)) {
+  VarNames_sht[1:OrdIndx] <- substr(Ynames[1:OrdIndx], 1, 7)
+  
+  if (J > OrdIndx) {
+    NomNames_sht <- list()
+    for (j in (OrdIndx + 1):J) {
+      NomNames_sht[[j - OrdIndx]] <- rep(NA, (K[j] - 1))
+      for(k in 1:(K[j] - 1)) {
+        NomNames_sht[[j - OrdIndx]][k] <- paste(substr(Ynames[j], 1, 7),"_", k, sep = "")
+      }
+    }
+    VarNames_sht[(OrdIndx + 1):D] <- unlist(NomNames_sht)
+  }
+} else {
+  VarNames_sht <- VarNames
+}
+
+# Mixing weights
+pi.vec <- table(ind)/N 
+
+# Mean
+mu <- res_6_high$means
+
+#Covariance
+Sigma <- res_6_high$Sigma
+
+perc.cutoffs <- function(CnsIndx, OrdIndx, Y, N) {
+  perc.cut <- list()
+  for (j in (CnsIndx + 1):OrdIndx) {
+    perc.cut[[j]] <- qnorm(c(0, cumsum(table(Y[, j])/N)))
+  }
+  perc.cut
+}
+
+# Cutoffs for ordinal items
+if (OrdIndx > CnsIndx) {
+  perc.cut <- perc.cutoffs(CnsIndx, OrdIndx, Y, N)
+  zlimits <- array(NA, c(N, J, 2))
+  zlimits[, 1:CnsIndx, 1] <- -Inf
+  zlimits[, 1:CnsIndx, 2] <- Inf
+  for (j in (CnsIndx + 1):OrdIndx) {
+    for (k in 1:K[j]) {
+      zlimits[Y[, j] == k, j, 1] <- perc.cut[[j]][k]
+      zlimits[Y[, j] == k, j, 2] <- perc.cut[[j]][k + 1]
+    }
+  }
+} else {
+  perc.cut <- list()
+  zlimits <- array(NA, c(N, J, 2))
+}
+
+# Define norms
+Nnorms <- 100000
+if (J > OrdIndx) 
+  norms <- MASS::mvrnorm(Nnorms, mu = rep(0, max(K[(OrdIndx + 1):J]) - 1),
+                         Sigma = diag(max(K[(OrdIndx + 1):J]) - 1))
+
+
+z.moments_diag <- function(D, G, N, CnsIndx, OrdIndx, zlimits, mu, Sigma, 
+                           Y, J, K, norms, nom.ind.Z) {
+  D <- J
+  if (J > OrdIndx) 
+    D <- OrdIndx + sum(K[(OrdIndx + 1):J] - 1)
+  
+  Ez.new <- array(NA, c(N, D, G))
+  # S.new <- matrix(0, N, G)
+  S2.new <- array(NA, c(D, D, G, N))
+  probs.new <- NA  #dummy required for output
+  if (J > OrdIndx) 
+    probs.new <- array(NA, c(J - OrdIndx, max(K[(OrdIndx + 1):J]), G))
+  
+  for (g in 1:G) {
+    # continuous
+    if (CnsIndx > 0) 
+      Ez.new[, 1:CnsIndx, ] <- Y[, 1:CnsIndx]
+    
+    # ordinal
+    if (OrdIndx > CnsIndx) {
+      for (i in 1:N) {
+        temp.e <- truncnorm::etruncnorm(a = zlimits[i, (CnsIndx + 1):OrdIndx, 1],
+                                        b = zlimits[i, (CnsIndx + 1):OrdIndx, 2],
+                                        mean = mu[(CnsIndx + 1):OrdIndx, g],
+                                        sd = sqrt(diag(Sigma[, , g])[(CnsIndx + 1):OrdIndx]))
+        
+        Ez.new[i, (CnsIndx + 1):OrdIndx, g] <- temp.e
+        
+        temp.v <- truncnorm::vtruncnorm(a = zlimits[i, (CnsIndx + 1):OrdIndx, 1],
+                                        b = zlimits[i, (CnsIndx + 1):OrdIndx, 2],
+                                        mean = mu[(CnsIndx + 1):OrdIndx, g],
+                                        sd = sqrt(diag(Sigma[, , g])[(CnsIndx + 1):OrdIndx]))
+        
+        S2.new[(CnsIndx + 1):OrdIndx, (CnsIndx + 1):OrdIndx, g, i] <- diag(temp.v + temp.e^2,
+                                                                           nrow=OrdIndx-CnsIndx) 
+      }  # i
+    }  # if
+    
+    # Nominal
+    if (J > OrdIndx) {
+      for (j in (OrdIndx + 1):J) {
+        Zrep <- norms[, 1:(K[j] - 1)] %*% 
+          chol(Sigma[nom.ind.Z[[j - OrdIndx]], nom.ind.Z[[j - OrdIndx]], g]) +
+          matrix(mu[nom.ind.Z[[j - OrdIndx]], g], dim(norms)[1], K[j] - 1, byrow = TRUE)
+        
+        temp.z <- z.nom.diag(Zrep)
+        
+        probs.new[j - OrdIndx, 1:K[j], g] <- temp.z[[1]]
+        
+        for (k in 1:K[j]) {
+          Ez.new[Y[, j] == k, nom.ind.Z[[j - OrdIndx]], g] <-
+            matrix(temp.z[[2]][, k], sum(Y[, j] == k), K[j] - 1, byrow = TRUE)
+          
+          S2.new[nom.ind.Z[[j - OrdIndx]], nom.ind.Z[[j - OrdIndx]], g, Y[, j] == k] <-
+            matrix(diag(diag(temp.z[[3]][, , k])), K[j] - 1, K[j] - 1, byrow = TRUE)
+        }  # k
+      }  # j
+    }  # if
+  }  # g
+  list(Ez.new, probs.new, S2.new)
+}
+
+z.nom.diag <- function(Z) {
+  # Z is a matrix of simulated vectors (each row) y is the jth column of
+  # observed nominal responses
+  yrep <- rep(0, dim(Z)[1])
+  yrep[apply(Z, 1, max) < 0] <- 1
+  yrep[yrep != 1] <- apply(Z[yrep != 1, ], 1, which.max) + 1
+  
+  probs <- as.vector(table(yrep)/dim(Z)[1])
+  
+  if (length(probs) < (dim(Z)[2] + 1)) {
+    cat("ERROR:No Monte Carlo observations generating one or more levels
+        of a nominal variable.", "\n", "Increasing Nnorms may solve this
+        problem.")
+  }
+  
+  Ez_nom <- matrix(NA, dim(Z)[2], dim(Z)[2] + 1)
+  Ezzt_nom <- array(NA, c(dim(Z)[2], dim(Z)[2], dim(Z)[2] + 1))
+  for (k in 1:(dim(Z)[2] + 1)) {
+    Ez_nom[, k] <- colMeans(matrix(Z[yrep == k, ], nrow = sum(yrep == k)))
+    Ezzt_nom[, , k] <- matrix(t(Z[yrep==k,])%*%Z[yrep==k, ]/sum(yrep == k),
+                              dim(Z)[2], dim(Z)[2])
+  }
+  
+  # Returns: 1. Probability of each possible response 2. Expected value of
+  # latent vector for each possible response 3. Expected value of outer
+  # product of latent vector for each possible response
+  list(probs, Ez_nom, Ezzt_nom)
+}
+
+stable.probs <- function(s) {
+  s.max <- max(s)
+  indx <- which.max(s)
+  alpha <- s.max + log(1 + sum(exp(s[-indx] - s.max)))
+  alpha
+}
+
+temp.z <- z.moments_diag(D, G, N, CnsIndx, OrdIndx, zlimits, mu, Sigma, Y,
+                         J, K, norms, nom.ind.Z)
+
+probs.nom <- temp.z[[2]]
+
+# Run 2nd function
+res_6_high_loglik <- ObsLogLikelihood(N, CnsIndx, G, Y, mu, Sigma, pi.vec, patt.indx, 
+zlimits, J, OrdIndx, probs.nom, model, perc.cut, K)
+
+```
+
+
+# Model 7
+```{r}
+# Define the model we're running. This is the same as the clustMD we ran above
+Y <- res_7_high$Y
+N <- nrow(res_7_high$Y)
+J <- ncol(res_7_high$Y)
+G <- 5
+CnsIndx <- 3
+OrdIndx <- 16
+model <- "VVI"
+ind = res_7_high$cl
+
+K <- apply(Y, 2, max)
+if (CnsIndx > 0) 
+  K[1:CnsIndx] <- NA
+D <- J
+if (J > OrdIndx) 
+  D <- OrdIndx + sum(K[(OrdIndx + 1):J] - 1)
+
+# Which dimensions correspond to each item
+if (J > OrdIndx) {
+  nom.ind.Z <- vector("list", J - OrdIndx)
+  for (j in 1:(J - OrdIndx)) {
+    if (j == 1) {
+      start <- OrdIndx + 1
+    } else {
+      start <- OrdIndx + sum(K[(OrdIndx + 1):(OrdIndx + j - 1)] - 1) + 1
+    }
+    finish <- start + K[OrdIndx + j] - 2
+    nom.ind.Z[[j]] <- c(start:finish)
+  }  # j
+}  # if
+
+if ( (model == "BD")&(OrdIndx > CnsIndx) ){
+  if((OrdIndx-CnsIndx)==1){
+    patt.indx <- list()
+    for(p in 1:max(Y[, OrdIndx])) {patt.indx[[p]] <- which(Y[, OrdIndx]==p)}
+  }else{
+    patt.tab <- data.frame(table(data.frame((Y[, (CnsIndx + 1):OrdIndx]))))
+    patt.tab <- patt.tab[patt.tab$Freq != 0, 1:(OrdIndx - CnsIndx)]
+    patt.indx <- list()
+    for (p in 1:nrow(patt.tab)) {
+      patt.indx[[p]] <- which(apply(Y[, (CnsIndx + 1):OrdIndx], 1, patt.equal, patt.tab[p, ]))
+    } # p
+  }
+} # if
+
+Ynames <- colnames(Y)
+VarNames <- as.character(1:D)
+if (!is.null(Ynames)) {
+  VarNames[1:OrdIndx] <- Ynames[1:OrdIndx]
+  
+  if (J > OrdIndx) {
+    NomNames <- list()
+    for (j in (OrdIndx + 1):J) {
+      NomNames[[j - OrdIndx]] <- rep(NA, (K[j] - 1))
+      for(k in 1:(K[j] - 1)) {
+        NomNames[[j - OrdIndx]][k] <- paste(Ynames[j],"_", k, sep = "")
+      }
+    }
+    VarNames[(OrdIndx + 1):D] <- unlist(NomNames)
+  }
+} else {
+  for(j in 1:OrdIndx) {
+    VarNames[j] <- paste("V", j, sep = "")
+  }
+  
+  if (J > OrdIndx) {
+    NomNames <- list()
+    for (j in (OrdIndx + 1):J) {
+      NomNames[[j - OrdIndx]] <- rep(paste("V", j, sep=""), (K[j] - 1))
+      for(k in 1:(K[j] - 1)) {
+        NomNames[[j - OrdIndx]][k] <- paste("V", j, "_", k, sep = "")
+      }
+    }
+    VarNames[(OrdIndx + 1):D] <- unlist(NomNames)
+  }
+}
+
+# Shortened version
+VarNames_sht <- as.character(1:D)
+if (!is.null(Ynames)) {
+  VarNames_sht[1:OrdIndx] <- substr(Ynames[1:OrdIndx], 1, 7)
+  
+  if (J > OrdIndx) {
+    NomNames_sht <- list()
+    for (j in (OrdIndx + 1):J) {
+      NomNames_sht[[j - OrdIndx]] <- rep(NA, (K[j] - 1))
+      for(k in 1:(K[j] - 1)) {
+        NomNames_sht[[j - OrdIndx]][k] <- paste(substr(Ynames[j], 1, 7),"_", k, sep = "")
+      }
+    }
+    VarNames_sht[(OrdIndx + 1):D] <- unlist(NomNames_sht)
+  }
+} else {
+  VarNames_sht <- VarNames
+}
+
+# Mixing weights
+pi.vec <- table(ind)/N 
+
+# Mean
+mu <- res_7_high$means
+
+#Covariance
+Sigma <- res_7_high$Sigma
+
+perc.cutoffs <- function(CnsIndx, OrdIndx, Y, N) {
+  perc.cut <- list()
+  for (j in (CnsIndx + 1):OrdIndx) {
+    perc.cut[[j]] <- qnorm(c(0, cumsum(table(Y[, j])/N)))
+  }
+  perc.cut
+}
+
+# Cutoffs for ordinal items
+if (OrdIndx > CnsIndx) {
+  perc.cut <- perc.cutoffs(CnsIndx, OrdIndx, Y, N)
+  zlimits <- array(NA, c(N, J, 2))
+  zlimits[, 1:CnsIndx, 1] <- -Inf
+  zlimits[, 1:CnsIndx, 2] <- Inf
+  for (j in (CnsIndx + 1):OrdIndx) {
+    for (k in 1:K[j]) {
+      zlimits[Y[, j] == k, j, 1] <- perc.cut[[j]][k]
+      zlimits[Y[, j] == k, j, 2] <- perc.cut[[j]][k + 1]
+    }
+  }
+} else {
+  perc.cut <- list()
+  zlimits <- array(NA, c(N, J, 2))
+}
+
+# Define norms
+Nnorms <- 100000
+if (J > OrdIndx) 
+  norms <- MASS::mvrnorm(Nnorms, mu = rep(0, max(K[(OrdIndx + 1):J]) - 1),
+                         Sigma = diag(max(K[(OrdIndx + 1):J]) - 1))
+
+
+z.moments_diag <- function(D, G, N, CnsIndx, OrdIndx, zlimits, mu, Sigma, 
+                           Y, J, K, norms, nom.ind.Z) {
+  D <- J
+  if (J > OrdIndx) 
+    D <- OrdIndx + sum(K[(OrdIndx + 1):J] - 1)
+  
+  Ez.new <- array(NA, c(N, D, G))
+  # S.new <- matrix(0, N, G)
+  S2.new <- array(NA, c(D, D, G, N))
+  probs.new <- NA  #dummy required for output
+  if (J > OrdIndx) 
+    probs.new <- array(NA, c(J - OrdIndx, max(K[(OrdIndx + 1):J]), G))
+  
+  for (g in 1:G) {
+    # continuous
+    if (CnsIndx > 0) 
+      Ez.new[, 1:CnsIndx, ] <- Y[, 1:CnsIndx]
+    
+    # ordinal
+    if (OrdIndx > CnsIndx) {
+      for (i in 1:N) {
+        temp.e <- truncnorm::etruncnorm(a = zlimits[i, (CnsIndx + 1):OrdIndx, 1],
+                                        b = zlimits[i, (CnsIndx + 1):OrdIndx, 2],
+                                        mean = mu[(CnsIndx + 1):OrdIndx, g],
+                                        sd = sqrt(diag(Sigma[, , g])[(CnsIndx + 1):OrdIndx]))
+        
+        Ez.new[i, (CnsIndx + 1):OrdIndx, g] <- temp.e
+        
+        temp.v <- truncnorm::vtruncnorm(a = zlimits[i, (CnsIndx + 1):OrdIndx, 1],
+                                        b = zlimits[i, (CnsIndx + 1):OrdIndx, 2],
+                                        mean = mu[(CnsIndx + 1):OrdIndx, g],
+                                        sd = sqrt(diag(Sigma[, , g])[(CnsIndx + 1):OrdIndx]))
+        
+        S2.new[(CnsIndx + 1):OrdIndx, (CnsIndx + 1):OrdIndx, g, i] <- diag(temp.v + temp.e^2,
+                                                                           nrow=OrdIndx-CnsIndx) 
+      }  # i
+    }  # if
+    
+    # Nominal
+    if (J > OrdIndx) {
+      for (j in (OrdIndx + 1):J) {
+        Zrep <- norms[, 1:(K[j] - 1)] %*% 
+          chol(Sigma[nom.ind.Z[[j - OrdIndx]], nom.ind.Z[[j - OrdIndx]], g]) +
+          matrix(mu[nom.ind.Z[[j - OrdIndx]], g], dim(norms)[1], K[j] - 1, byrow = TRUE)
+        
+        temp.z <- z.nom.diag(Zrep)
+        
+        probs.new[j - OrdIndx, 1:K[j], g] <- temp.z[[1]]
+        
+        for (k in 1:K[j]) {
+          Ez.new[Y[, j] == k, nom.ind.Z[[j - OrdIndx]], g] <-
+            matrix(temp.z[[2]][, k], sum(Y[, j] == k), K[j] - 1, byrow = TRUE)
+          
+          S2.new[nom.ind.Z[[j - OrdIndx]], nom.ind.Z[[j - OrdIndx]], g, Y[, j] == k] <-
+            matrix(diag(diag(temp.z[[3]][, , k])), K[j] - 1, K[j] - 1, byrow = TRUE)
+        }  # k
+      }  # j
+    }  # if
+  }  # g
+  list(Ez.new, probs.new, S2.new)
+}
+
+z.nom.diag <- function(Z) {
+  # Z is a matrix of simulated vectors (each row) y is the jth column of
+  # observed nominal responses
+  yrep <- rep(0, dim(Z)[1])
+  yrep[apply(Z, 1, max) < 0] <- 1
+  yrep[yrep != 1] <- apply(Z[yrep != 1, ], 1, which.max) + 1
+  
+  probs <- as.vector(table(yrep)/dim(Z)[1])
+  
+  if (length(probs) < (dim(Z)[2] + 1)) {
+    cat("ERROR:No Monte Carlo observations generating one or more levels
+        of a nominal variable.", "\n", "Increasing Nnorms may solve this
+        problem.")
+  }
+  
+  Ez_nom <- matrix(NA, dim(Z)[2], dim(Z)[2] + 1)
+  Ezzt_nom <- array(NA, c(dim(Z)[2], dim(Z)[2], dim(Z)[2] + 1))
+  for (k in 1:(dim(Z)[2] + 1)) {
+    Ez_nom[, k] <- colMeans(matrix(Z[yrep == k, ], nrow = sum(yrep == k)))
+    Ezzt_nom[, , k] <- matrix(t(Z[yrep==k,])%*%Z[yrep==k, ]/sum(yrep == k),
+                              dim(Z)[2], dim(Z)[2])
+  }
+  
+  # Returns: 1. Probability of each possible response 2. Expected value of
+  # latent vector for each possible response 3. Expected value of outer
+  # product of latent vector for each possible response
+  list(probs, Ez_nom, Ezzt_nom)
+}
+
+stable.probs <- function(s) {
+  s.max <- max(s)
+  indx <- which.max(s)
+  alpha <- s.max + log(1 + sum(exp(s[-indx] - s.max)))
+  alpha
+}
+
+temp.z <- z.moments_diag(D, G, N, CnsIndx, OrdIndx, zlimits, mu, Sigma, Y,
+                         J, K, norms, nom.ind.Z)
+
+probs.nom <- temp.z[[2]]
+
+# Run 2nd function
+res_7_high_loglik <- ObsLogLikelihood(N, CnsIndx, G, Y, mu, Sigma, pi.vec, patt.indx, 
+zlimits, J, OrdIndx, probs.nom, model, perc.cut, K)
+
+```
+
+
+# Model 8
+```{r}
+# Define the model we're running. This is the same as the clustMD we ran above
+Y <- res_8_high$Y
+N <- nrow(res_8_high$Y)
+J <- ncol(res_8_high$Y)
+G <- 5
+CnsIndx <- 3
+OrdIndx <- 16
+model <- "VVI"
+ind = res_8_high$cl
+
+K <- apply(Y, 2, max)
+if (CnsIndx > 0) 
+  K[1:CnsIndx] <- NA
+D <- J
+if (J > OrdIndx) 
+  D <- OrdIndx + sum(K[(OrdIndx + 1):J] - 1)
+
+# Which dimensions correspond to each item
+if (J > OrdIndx) {
+  nom.ind.Z <- vector("list", J - OrdIndx)
+  for (j in 1:(J - OrdIndx)) {
+    if (j == 1) {
+      start <- OrdIndx + 1
+    } else {
+      start <- OrdIndx + sum(K[(OrdIndx + 1):(OrdIndx + j - 1)] - 1) + 1
+    }
+    finish <- start + K[OrdIndx + j] - 2
+    nom.ind.Z[[j]] <- c(start:finish)
+  }  # j
+}  # if
+
+if ( (model == "BD")&(OrdIndx > CnsIndx) ){
+  if((OrdIndx-CnsIndx)==1){
+    patt.indx <- list()
+    for(p in 1:max(Y[, OrdIndx])) {patt.indx[[p]] <- which(Y[, OrdIndx]==p)}
+  }else{
+    patt.tab <- data.frame(table(data.frame((Y[, (CnsIndx + 1):OrdIndx]))))
+    patt.tab <- patt.tab[patt.tab$Freq != 0, 1:(OrdIndx - CnsIndx)]
+    patt.indx <- list()
+    for (p in 1:nrow(patt.tab)) {
+      patt.indx[[p]] <- which(apply(Y[, (CnsIndx + 1):OrdIndx], 1, patt.equal, patt.tab[p, ]))
+    } # p
+  }
+} # if
+
+Ynames <- colnames(Y)
+VarNames <- as.character(1:D)
+if (!is.null(Ynames)) {
+  VarNames[1:OrdIndx] <- Ynames[1:OrdIndx]
+  
+  if (J > OrdIndx) {
+    NomNames <- list()
+    for (j in (OrdIndx + 1):J) {
+      NomNames[[j - OrdIndx]] <- rep(NA, (K[j] - 1))
+      for(k in 1:(K[j] - 1)) {
+        NomNames[[j - OrdIndx]][k] <- paste(Ynames[j],"_", k, sep = "")
+      }
+    }
+    VarNames[(OrdIndx + 1):D] <- unlist(NomNames)
+  }
+} else {
+  for(j in 1:OrdIndx) {
+    VarNames[j] <- paste("V", j, sep = "")
+  }
+  
+  if (J > OrdIndx) {
+    NomNames <- list()
+    for (j in (OrdIndx + 1):J) {
+      NomNames[[j - OrdIndx]] <- rep(paste("V", j, sep=""), (K[j] - 1))
+      for(k in 1:(K[j] - 1)) {
+        NomNames[[j - OrdIndx]][k] <- paste("V", j, "_", k, sep = "")
+      }
+    }
+    VarNames[(OrdIndx + 1):D] <- unlist(NomNames)
+  }
+}
+
+# Shortened version
+VarNames_sht <- as.character(1:D)
+if (!is.null(Ynames)) {
+  VarNames_sht[1:OrdIndx] <- substr(Ynames[1:OrdIndx], 1, 7)
+  
+  if (J > OrdIndx) {
+    NomNames_sht <- list()
+    for (j in (OrdIndx + 1):J) {
+      NomNames_sht[[j - OrdIndx]] <- rep(NA, (K[j] - 1))
+      for(k in 1:(K[j] - 1)) {
+        NomNames_sht[[j - OrdIndx]][k] <- paste(substr(Ynames[j], 1, 7),"_", k, sep = "")
+      }
+    }
+    VarNames_sht[(OrdIndx + 1):D] <- unlist(NomNames_sht)
+  }
+} else {
+  VarNames_sht <- VarNames
+}
+
+# Mixing weights
+pi.vec <- table(ind)/N 
+
+# Mean
+mu <- res_8_high$means
+
+#Covariance
+Sigma <- res_8_high$Sigma
+
+perc.cutoffs <- function(CnsIndx, OrdIndx, Y, N) {
+  perc.cut <- list()
+  for (j in (CnsIndx + 1):OrdIndx) {
+    perc.cut[[j]] <- qnorm(c(0, cumsum(table(Y[, j])/N)))
+  }
+  perc.cut
+}
+
+# Cutoffs for ordinal items
+if (OrdIndx > CnsIndx) {
+  perc.cut <- perc.cutoffs(CnsIndx, OrdIndx, Y, N)
+  zlimits <- array(NA, c(N, J, 2))
+  zlimits[, 1:CnsIndx, 1] <- -Inf
+  zlimits[, 1:CnsIndx, 2] <- Inf
+  for (j in (CnsIndx + 1):OrdIndx) {
+    for (k in 1:K[j]) {
+      zlimits[Y[, j] == k, j, 1] <- perc.cut[[j]][k]
+      zlimits[Y[, j] == k, j, 2] <- perc.cut[[j]][k + 1]
+    }
+  }
+} else {
+  perc.cut <- list()
+  zlimits <- array(NA, c(N, J, 2))
+}
+
+# Define norms
+Nnorms <- 100000
+if (J > OrdIndx) 
+  norms <- MASS::mvrnorm(Nnorms, mu = rep(0, max(K[(OrdIndx + 1):J]) - 1),
+                         Sigma = diag(max(K[(OrdIndx + 1):J]) - 1))
+
+
+z.moments_diag <- function(D, G, N, CnsIndx, OrdIndx, zlimits, mu, Sigma, 
+                           Y, J, K, norms, nom.ind.Z) {
+  D <- J
+  if (J > OrdIndx) 
+    D <- OrdIndx + sum(K[(OrdIndx + 1):J] - 1)
+  
+  Ez.new <- array(NA, c(N, D, G))
+  # S.new <- matrix(0, N, G)
+  S2.new <- array(NA, c(D, D, G, N))
+  probs.new <- NA  #dummy required for output
+  if (J > OrdIndx) 
+    probs.new <- array(NA, c(J - OrdIndx, max(K[(OrdIndx + 1):J]), G))
+  
+  for (g in 1:G) {
+    # continuous
+    if (CnsIndx > 0) 
+      Ez.new[, 1:CnsIndx, ] <- Y[, 1:CnsIndx]
+    
+    # ordinal
+    if (OrdIndx > CnsIndx) {
+      for (i in 1:N) {
+        temp.e <- truncnorm::etruncnorm(a = zlimits[i, (CnsIndx + 1):OrdIndx, 1],
+                                        b = zlimits[i, (CnsIndx + 1):OrdIndx, 2],
+                                        mean = mu[(CnsIndx + 1):OrdIndx, g],
+                                        sd = sqrt(diag(Sigma[, , g])[(CnsIndx + 1):OrdIndx]))
+        
+        Ez.new[i, (CnsIndx + 1):OrdIndx, g] <- temp.e
+        
+        temp.v <- truncnorm::vtruncnorm(a = zlimits[i, (CnsIndx + 1):OrdIndx, 1],
+                                        b = zlimits[i, (CnsIndx + 1):OrdIndx, 2],
+                                        mean = mu[(CnsIndx + 1):OrdIndx, g],
+                                        sd = sqrt(diag(Sigma[, , g])[(CnsIndx + 1):OrdIndx]))
+        
+        S2.new[(CnsIndx + 1):OrdIndx, (CnsIndx + 1):OrdIndx, g, i] <- diag(temp.v + temp.e^2,
+                                                                           nrow=OrdIndx-CnsIndx) 
+      }  # i
+    }  # if
+    
+    # Nominal
+    if (J > OrdIndx) {
+      for (j in (OrdIndx + 1):J) {
+        Zrep <- norms[, 1:(K[j] - 1)] %*% 
+          chol(Sigma[nom.ind.Z[[j - OrdIndx]], nom.ind.Z[[j - OrdIndx]], g]) +
+          matrix(mu[nom.ind.Z[[j - OrdIndx]], g], dim(norms)[1], K[j] - 1, byrow = TRUE)
+        
+        temp.z <- z.nom.diag(Zrep)
+        
+        probs.new[j - OrdIndx, 1:K[j], g] <- temp.z[[1]]
+        
+        for (k in 1:K[j]) {
+          Ez.new[Y[, j] == k, nom.ind.Z[[j - OrdIndx]], g] <-
+            matrix(temp.z[[2]][, k], sum(Y[, j] == k), K[j] - 1, byrow = TRUE)
+          
+          S2.new[nom.ind.Z[[j - OrdIndx]], nom.ind.Z[[j - OrdIndx]], g, Y[, j] == k] <-
+            matrix(diag(diag(temp.z[[3]][, , k])), K[j] - 1, K[j] - 1, byrow = TRUE)
+        }  # k
+      }  # j
+    }  # if
+  }  # g
+  list(Ez.new, probs.new, S2.new)
+}
+
+z.nom.diag <- function(Z) {
+  # Z is a matrix of simulated vectors (each row) y is the jth column of
+  # observed nominal responses
+  yrep <- rep(0, dim(Z)[1])
+  yrep[apply(Z, 1, max) < 0] <- 1
+  yrep[yrep != 1] <- apply(Z[yrep != 1, ], 1, which.max) + 1
+  
+  probs <- as.vector(table(yrep)/dim(Z)[1])
+  
+  if (length(probs) < (dim(Z)[2] + 1)) {
+    cat("ERROR:No Monte Carlo observations generating one or more levels
+        of a nominal variable.", "\n", "Increasing Nnorms may solve this
+        problem.")
+  }
+  
+  Ez_nom <- matrix(NA, dim(Z)[2], dim(Z)[2] + 1)
+  Ezzt_nom <- array(NA, c(dim(Z)[2], dim(Z)[2], dim(Z)[2] + 1))
+  for (k in 1:(dim(Z)[2] + 1)) {
+    Ez_nom[, k] <- colMeans(matrix(Z[yrep == k, ], nrow = sum(yrep == k)))
+    Ezzt_nom[, , k] <- matrix(t(Z[yrep==k,])%*%Z[yrep==k, ]/sum(yrep == k),
+                              dim(Z)[2], dim(Z)[2])
+  }
+  
+  # Returns: 1. Probability of each possible response 2. Expected value of
+  # latent vector for each possible response 3. Expected value of outer
+  # product of latent vector for each possible response
+  list(probs, Ez_nom, Ezzt_nom)
+}
+
+stable.probs <- function(s) {
+  s.max <- max(s)
+  indx <- which.max(s)
+  alpha <- s.max + log(1 + sum(exp(s[-indx] - s.max)))
+  alpha
+}
+
+temp.z <- z.moments_diag(D, G, N, CnsIndx, OrdIndx, zlimits, mu, Sigma, Y,
+                         J, K, norms, nom.ind.Z)
+
+probs.nom <- temp.z[[2]]
+
+# Run 2nd function
+res_8_high_loglik <- ObsLogLikelihood(N, CnsIndx, G, Y, mu, Sigma, pi.vec, patt.indx, 
+zlimits, J, OrdIndx, probs.nom, model, perc.cut, K)
+
+```
+
+# Model 9
+```{r}
+# Define the model we're running. This is the same as the clustMD we ran above
+Y <- res_9_high$Y
+N <- nrow(res_9_high$Y)
+J <- ncol(res_9_high$Y)
+G <- 5
+CnsIndx <- 3
+OrdIndx <- 16
+model <- "VVI"
+ind = res_9_high$cl
+
+K <- apply(Y, 2, max)
+if (CnsIndx > 0) 
+  K[1:CnsIndx] <- NA
+D <- J
+if (J > OrdIndx) 
+  D <- OrdIndx + sum(K[(OrdIndx + 1):J] - 1)
+
+# Which dimensions correspond to each item
+if (J > OrdIndx) {
+  nom.ind.Z <- vector("list", J - OrdIndx)
+  for (j in 1:(J - OrdIndx)) {
+    if (j == 1) {
+      start <- OrdIndx + 1
+    } else {
+      start <- OrdIndx + sum(K[(OrdIndx + 1):(OrdIndx + j - 1)] - 1) + 1
+    }
+    finish <- start + K[OrdIndx + j] - 2
+    nom.ind.Z[[j]] <- c(start:finish)
+  }  # j
+}  # if
+
+if ( (model == "BD")&(OrdIndx > CnsIndx) ){
+  if((OrdIndx-CnsIndx)==1){
+    patt.indx <- list()
+    for(p in 1:max(Y[, OrdIndx])) {patt.indx[[p]] <- which(Y[, OrdIndx]==p)}
+  }else{
+    patt.tab <- data.frame(table(data.frame((Y[, (CnsIndx + 1):OrdIndx]))))
+    patt.tab <- patt.tab[patt.tab$Freq != 0, 1:(OrdIndx - CnsIndx)]
+    patt.indx <- list()
+    for (p in 1:nrow(patt.tab)) {
+      patt.indx[[p]] <- which(apply(Y[, (CnsIndx + 1):OrdIndx], 1, patt.equal, patt.tab[p, ]))
+    } # p
+  }
+} # if
+
+Ynames <- colnames(Y)
+VarNames <- as.character(1:D)
+if (!is.null(Ynames)) {
+  VarNames[1:OrdIndx] <- Ynames[1:OrdIndx]
+  
+  if (J > OrdIndx) {
+    NomNames <- list()
+    for (j in (OrdIndx + 1):J) {
+      NomNames[[j - OrdIndx]] <- rep(NA, (K[j] - 1))
+      for(k in 1:(K[j] - 1)) {
+        NomNames[[j - OrdIndx]][k] <- paste(Ynames[j],"_", k, sep = "")
+      }
+    }
+    VarNames[(OrdIndx + 1):D] <- unlist(NomNames)
+  }
+} else {
+  for(j in 1:OrdIndx) {
+    VarNames[j] <- paste("V", j, sep = "")
+  }
+  
+  if (J > OrdIndx) {
+    NomNames <- list()
+    for (j in (OrdIndx + 1):J) {
+      NomNames[[j - OrdIndx]] <- rep(paste("V", j, sep=""), (K[j] - 1))
+      for(k in 1:(K[j] - 1)) {
+        NomNames[[j - OrdIndx]][k] <- paste("V", j, "_", k, sep = "")
+      }
+    }
+    VarNames[(OrdIndx + 1):D] <- unlist(NomNames)
+  }
+}
+
+# Shortened version
+VarNames_sht <- as.character(1:D)
+if (!is.null(Ynames)) {
+  VarNames_sht[1:OrdIndx] <- substr(Ynames[1:OrdIndx], 1, 7)
+  
+  if (J > OrdIndx) {
+    NomNames_sht <- list()
+    for (j in (OrdIndx + 1):J) {
+      NomNames_sht[[j - OrdIndx]] <- rep(NA, (K[j] - 1))
+      for(k in 1:(K[j] - 1)) {
+        NomNames_sht[[j - OrdIndx]][k] <- paste(substr(Ynames[j], 1, 7),"_", k, sep = "")
+      }
+    }
+    VarNames_sht[(OrdIndx + 1):D] <- unlist(NomNames_sht)
+  }
+} else {
+  VarNames_sht <- VarNames
+}
+
+# Mixing weights
+pi.vec <- table(ind)/N 
+
+# Mean
+mu <- res_9_high$means
+
+#Covariance
+Sigma <- res_9_high$Sigma
+
+perc.cutoffs <- function(CnsIndx, OrdIndx, Y, N) {
+  perc.cut <- list()
+  for (j in (CnsIndx + 1):OrdIndx) {
+    perc.cut[[j]] <- qnorm(c(0, cumsum(table(Y[, j])/N)))
+  }
+  perc.cut
+}
+
+# Cutoffs for ordinal items
+if (OrdIndx > CnsIndx) {
+  perc.cut <- perc.cutoffs(CnsIndx, OrdIndx, Y, N)
+  zlimits <- array(NA, c(N, J, 2))
+  zlimits[, 1:CnsIndx, 1] <- -Inf
+  zlimits[, 1:CnsIndx, 2] <- Inf
+  for (j in (CnsIndx + 1):OrdIndx) {
+    for (k in 1:K[j]) {
+      zlimits[Y[, j] == k, j, 1] <- perc.cut[[j]][k]
+      zlimits[Y[, j] == k, j, 2] <- perc.cut[[j]][k + 1]
+    }
+  }
+} else {
+  perc.cut <- list()
+  zlimits <- array(NA, c(N, J, 2))
+}
+
+# Define norms
+Nnorms <- 100000
+if (J > OrdIndx) 
+  norms <- MASS::mvrnorm(Nnorms, mu = rep(0, max(K[(OrdIndx + 1):J]) - 1),
+                         Sigma = diag(max(K[(OrdIndx + 1):J]) - 1))
+
+
+z.moments_diag <- function(D, G, N, CnsIndx, OrdIndx, zlimits, mu, Sigma, 
+                           Y, J, K, norms, nom.ind.Z) {
+  D <- J
+  if (J > OrdIndx) 
+    D <- OrdIndx + sum(K[(OrdIndx + 1):J] - 1)
+  
+  Ez.new <- array(NA, c(N, D, G))
+  # S.new <- matrix(0, N, G)
+  S2.new <- array(NA, c(D, D, G, N))
+  probs.new <- NA  #dummy required for output
+  if (J > OrdIndx) 
+    probs.new <- array(NA, c(J - OrdIndx, max(K[(OrdIndx + 1):J]), G))
+  
+  for (g in 1:G) {
+    # continuous
+    if (CnsIndx > 0) 
+      Ez.new[, 1:CnsIndx, ] <- Y[, 1:CnsIndx]
+    
+    # ordinal
+    if (OrdIndx > CnsIndx) {
+      for (i in 1:N) {
+        temp.e <- truncnorm::etruncnorm(a = zlimits[i, (CnsIndx + 1):OrdIndx, 1],
+                                        b = zlimits[i, (CnsIndx + 1):OrdIndx, 2],
+                                        mean = mu[(CnsIndx + 1):OrdIndx, g],
+                                        sd = sqrt(diag(Sigma[, , g])[(CnsIndx + 1):OrdIndx]))
+        
+        Ez.new[i, (CnsIndx + 1):OrdIndx, g] <- temp.e
+        
+        temp.v <- truncnorm::vtruncnorm(a = zlimits[i, (CnsIndx + 1):OrdIndx, 1],
+                                        b = zlimits[i, (CnsIndx + 1):OrdIndx, 2],
+                                        mean = mu[(CnsIndx + 1):OrdIndx, g],
+                                        sd = sqrt(diag(Sigma[, , g])[(CnsIndx + 1):OrdIndx]))
+        
+        S2.new[(CnsIndx + 1):OrdIndx, (CnsIndx + 1):OrdIndx, g, i] <- diag(temp.v + temp.e^2,
+                                                                           nrow=OrdIndx-CnsIndx) 
+      }  # i
+    }  # if
+    
+    # Nominal
+    if (J > OrdIndx) {
+      for (j in (OrdIndx + 1):J) {
+        Zrep <- norms[, 1:(K[j] - 1)] %*% 
+          chol(Sigma[nom.ind.Z[[j - OrdIndx]], nom.ind.Z[[j - OrdIndx]], g]) +
+          matrix(mu[nom.ind.Z[[j - OrdIndx]], g], dim(norms)[1], K[j] - 1, byrow = TRUE)
+        
+        temp.z <- z.nom.diag(Zrep)
+        
+        probs.new[j - OrdIndx, 1:K[j], g] <- temp.z[[1]]
+        
+        for (k in 1:K[j]) {
+          Ez.new[Y[, j] == k, nom.ind.Z[[j - OrdIndx]], g] <-
+            matrix(temp.z[[2]][, k], sum(Y[, j] == k), K[j] - 1, byrow = TRUE)
+          
+          S2.new[nom.ind.Z[[j - OrdIndx]], nom.ind.Z[[j - OrdIndx]], g, Y[, j] == k] <-
+            matrix(diag(diag(temp.z[[3]][, , k])), K[j] - 1, K[j] - 1, byrow = TRUE)
+        }  # k
+      }  # j
+    }  # if
+  }  # g
+  list(Ez.new, probs.new, S2.new)
+}
+
+z.nom.diag <- function(Z) {
+  # Z is a matrix of simulated vectors (each row) y is the jth column of
+  # observed nominal responses
+  yrep <- rep(0, dim(Z)[1])
+  yrep[apply(Z, 1, max) < 0] <- 1
+  yrep[yrep != 1] <- apply(Z[yrep != 1, ], 1, which.max) + 1
+  
+  probs <- as.vector(table(yrep)/dim(Z)[1])
+  
+  if (length(probs) < (dim(Z)[2] + 1)) {
+    cat("ERROR:No Monte Carlo observations generating one or more levels
+        of a nominal variable.", "\n", "Increasing Nnorms may solve this
+        problem.")
+  }
+  
+  Ez_nom <- matrix(NA, dim(Z)[2], dim(Z)[2] + 1)
+  Ezzt_nom <- array(NA, c(dim(Z)[2], dim(Z)[2], dim(Z)[2] + 1))
+  for (k in 1:(dim(Z)[2] + 1)) {
+    Ez_nom[, k] <- colMeans(matrix(Z[yrep == k, ], nrow = sum(yrep == k)))
+    Ezzt_nom[, , k] <- matrix(t(Z[yrep==k,])%*%Z[yrep==k, ]/sum(yrep == k),
+                              dim(Z)[2], dim(Z)[2])
+  }
+  
+  # Returns: 1. Probability of each possible response 2. Expected value of
+  # latent vector for each possible response 3. Expected value of outer
+  # product of latent vector for each possible response
+  list(probs, Ez_nom, Ezzt_nom)
+}
+
+stable.probs <- function(s) {
+  s.max <- max(s)
+  indx <- which.max(s)
+  alpha <- s.max + log(1 + sum(exp(s[-indx] - s.max)))
+  alpha
+}
+
+temp.z <- z.moments_diag(D, G, N, CnsIndx, OrdIndx, zlimits, mu, Sigma, Y,
+                         J, K, norms, nom.ind.Z)
+
+probs.nom <- temp.z[[2]]
+
+# Run 2nd function
+res_9_high_loglik <- ObsLogLikelihood(N, CnsIndx, G, Y, mu, Sigma, pi.vec, patt.indx, 
+zlimits, J, OrdIndx, probs.nom, model, perc.cut, K)
+
+```
+
+# Model 10
+```{r}
+# Define the model we're running. This is the same as the clustMD we ran above
+Y <- res_10_high$Y
+N <- nrow(res_10_high$Y)
+J <- ncol(res_10_high$Y)
+G <- 5
+CnsIndx <- 3
+OrdIndx <- 16
+model <- "VVI"
+ind = res_10_high$cl
+
+K <- apply(Y, 2, max)
+if (CnsIndx > 0) 
+  K[1:CnsIndx] <- NA
+D <- J
+if (J > OrdIndx) 
+  D <- OrdIndx + sum(K[(OrdIndx + 1):J] - 1)
+
+# Which dimensions correspond to each item
+if (J > OrdIndx) {
+  nom.ind.Z <- vector("list", J - OrdIndx)
+  for (j in 1:(J - OrdIndx)) {
+    if (j == 1) {
+      start <- OrdIndx + 1
+    } else {
+      start <- OrdIndx + sum(K[(OrdIndx + 1):(OrdIndx + j - 1)] - 1) + 1
+    }
+    finish <- start + K[OrdIndx + j] - 2
+    nom.ind.Z[[j]] <- c(start:finish)
+  }  # j
+}  # if
+
+if ( (model == "BD")&(OrdIndx > CnsIndx) ){
+  if((OrdIndx-CnsIndx)==1){
+    patt.indx <- list()
+    for(p in 1:max(Y[, OrdIndx])) {patt.indx[[p]] <- which(Y[, OrdIndx]==p)}
+  }else{
+    patt.tab <- data.frame(table(data.frame((Y[, (CnsIndx + 1):OrdIndx]))))
+    patt.tab <- patt.tab[patt.tab$Freq != 0, 1:(OrdIndx - CnsIndx)]
+    patt.indx <- list()
+    for (p in 1:nrow(patt.tab)) {
+      patt.indx[[p]] <- which(apply(Y[, (CnsIndx + 1):OrdIndx], 1, patt.equal, patt.tab[p, ]))
+    } # p
+  }
+} # if
+
+Ynames <- colnames(Y)
+VarNames <- as.character(1:D)
+if (!is.null(Ynames)) {
+  VarNames[1:OrdIndx] <- Ynames[1:OrdIndx]
+  
+  if (J > OrdIndx) {
+    NomNames <- list()
+    for (j in (OrdIndx + 1):J) {
+      NomNames[[j - OrdIndx]] <- rep(NA, (K[j] - 1))
+      for(k in 1:(K[j] - 1)) {
+        NomNames[[j - OrdIndx]][k] <- paste(Ynames[j],"_", k, sep = "")
+      }
+    }
+    VarNames[(OrdIndx + 1):D] <- unlist(NomNames)
+  }
+} else {
+  for(j in 1:OrdIndx) {
+    VarNames[j] <- paste("V", j, sep = "")
+  }
+  
+  if (J > OrdIndx) {
+    NomNames <- list()
+    for (j in (OrdIndx + 1):J) {
+      NomNames[[j - OrdIndx]] <- rep(paste("V", j, sep=""), (K[j] - 1))
+      for(k in 1:(K[j] - 1)) {
+        NomNames[[j - OrdIndx]][k] <- paste("V", j, "_", k, sep = "")
+      }
+    }
+    VarNames[(OrdIndx + 1):D] <- unlist(NomNames)
+  }
+}
+
+# Shortened version
+VarNames_sht <- as.character(1:D)
+if (!is.null(Ynames)) {
+  VarNames_sht[1:OrdIndx] <- substr(Ynames[1:OrdIndx], 1, 7)
+  
+  if (J > OrdIndx) {
+    NomNames_sht <- list()
+    for (j in (OrdIndx + 1):J) {
+      NomNames_sht[[j - OrdIndx]] <- rep(NA, (K[j] - 1))
+      for(k in 1:(K[j] - 1)) {
+        NomNames_sht[[j - OrdIndx]][k] <- paste(substr(Ynames[j], 1, 7),"_", k, sep = "")
+      }
+    }
+    VarNames_sht[(OrdIndx + 1):D] <- unlist(NomNames_sht)
+  }
+} else {
+  VarNames_sht <- VarNames
+}
+
+# Mixing weights
+pi.vec <- table(ind)/N 
+
+# Mean
+mu <- res_10_high$means
+
+#Covariance
+Sigma <- res_10_high$Sigma
+
+perc.cutoffs <- function(CnsIndx, OrdIndx, Y, N) {
+  perc.cut <- list()
+  for (j in (CnsIndx + 1):OrdIndx) {
+    perc.cut[[j]] <- qnorm(c(0, cumsum(table(Y[, j])/N)))
+  }
+  perc.cut
+}
+
+# Cutoffs for ordinal items
+if (OrdIndx > CnsIndx) {
+  perc.cut <- perc.cutoffs(CnsIndx, OrdIndx, Y, N)
+  zlimits <- array(NA, c(N, J, 2))
+  zlimits[, 1:CnsIndx, 1] <- -Inf
+  zlimits[, 1:CnsIndx, 2] <- Inf
+  for (j in (CnsIndx + 1):OrdIndx) {
+    for (k in 1:K[j]) {
+      zlimits[Y[, j] == k, j, 1] <- perc.cut[[j]][k]
+      zlimits[Y[, j] == k, j, 2] <- perc.cut[[j]][k + 1]
+    }
+  }
+} else {
+  perc.cut <- list()
+  zlimits <- array(NA, c(N, J, 2))
+}
+
+# Define norms
+Nnorms <- 100000
+if (J > OrdIndx) 
+  norms <- MASS::mvrnorm(Nnorms, mu = rep(0, max(K[(OrdIndx + 1):J]) - 1),
+                         Sigma = diag(max(K[(OrdIndx + 1):J]) - 1))
+
+
+z.moments_diag <- function(D, G, N, CnsIndx, OrdIndx, zlimits, mu, Sigma, 
+                           Y, J, K, norms, nom.ind.Z) {
+  D <- J
+  if (J > OrdIndx) 
+    D <- OrdIndx + sum(K[(OrdIndx + 1):J] - 1)
+  
+  Ez.new <- array(NA, c(N, D, G))
+  # S.new <- matrix(0, N, G)
+  S2.new <- array(NA, c(D, D, G, N))
+  probs.new <- NA  #dummy required for output
+  if (J > OrdIndx) 
+    probs.new <- array(NA, c(J - OrdIndx, max(K[(OrdIndx + 1):J]), G))
+  
+  for (g in 1:G) {
+    # continuous
+    if (CnsIndx > 0) 
+      Ez.new[, 1:CnsIndx, ] <- Y[, 1:CnsIndx]
+    
+    # ordinal
+    if (OrdIndx > CnsIndx) {
+      for (i in 1:N) {
+        temp.e <- truncnorm::etruncnorm(a = zlimits[i, (CnsIndx + 1):OrdIndx, 1],
+                                        b = zlimits[i, (CnsIndx + 1):OrdIndx, 2],
+                                        mean = mu[(CnsIndx + 1):OrdIndx, g],
+                                        sd = sqrt(diag(Sigma[, , g])[(CnsIndx + 1):OrdIndx]))
+        
+        Ez.new[i, (CnsIndx + 1):OrdIndx, g] <- temp.e
+        
+        temp.v <- truncnorm::vtruncnorm(a = zlimits[i, (CnsIndx + 1):OrdIndx, 1],
+                                        b = zlimits[i, (CnsIndx + 1):OrdIndx, 2],
+                                        mean = mu[(CnsIndx + 1):OrdIndx, g],
+                                        sd = sqrt(diag(Sigma[, , g])[(CnsIndx + 1):OrdIndx]))
+        
+        S2.new[(CnsIndx + 1):OrdIndx, (CnsIndx + 1):OrdIndx, g, i] <- diag(temp.v + temp.e^2,
+                                                                           nrow=OrdIndx-CnsIndx) 
+      }  # i
+    }  # if
+    
+    # Nominal
+    if (J > OrdIndx) {
+      for (j in (OrdIndx + 1):J) {
+        Zrep <- norms[, 1:(K[j] - 1)] %*% 
+          chol(Sigma[nom.ind.Z[[j - OrdIndx]], nom.ind.Z[[j - OrdIndx]], g]) +
+          matrix(mu[nom.ind.Z[[j - OrdIndx]], g], dim(norms)[1], K[j] - 1, byrow = TRUE)
+        
+        temp.z <- z.nom.diag(Zrep)
+        
+        probs.new[j - OrdIndx, 1:K[j], g] <- temp.z[[1]]
+        
+        for (k in 1:K[j]) {
+          Ez.new[Y[, j] == k, nom.ind.Z[[j - OrdIndx]], g] <-
+            matrix(temp.z[[2]][, k], sum(Y[, j] == k), K[j] - 1, byrow = TRUE)
+          
+          S2.new[nom.ind.Z[[j - OrdIndx]], nom.ind.Z[[j - OrdIndx]], g, Y[, j] == k] <-
+            matrix(diag(diag(temp.z[[3]][, , k])), K[j] - 1, K[j] - 1, byrow = TRUE)
+        }  # k
+      }  # j
+    }  # if
+  }  # g
+  list(Ez.new, probs.new, S2.new)
+}
+
+z.nom.diag <- function(Z) {
+  # Z is a matrix of simulated vectors (each row) y is the jth column of
+  # observed nominal responses
+  yrep <- rep(0, dim(Z)[1])
+  yrep[apply(Z, 1, max) < 0] <- 1
+  yrep[yrep != 1] <- apply(Z[yrep != 1, ], 1, which.max) + 1
+  
+  probs <- as.vector(table(yrep)/dim(Z)[1])
+  
+  if (length(probs) < (dim(Z)[2] + 1)) {
+    cat("ERROR:No Monte Carlo observations generating one or more levels
+        of a nominal variable.", "\n", "Increasing Nnorms may solve this
+        problem.")
+  }
+  
+  Ez_nom <- matrix(NA, dim(Z)[2], dim(Z)[2] + 1)
+  Ezzt_nom <- array(NA, c(dim(Z)[2], dim(Z)[2], dim(Z)[2] + 1))
+  for (k in 1:(dim(Z)[2] + 1)) {
+    Ez_nom[, k] <- colMeans(matrix(Z[yrep == k, ], nrow = sum(yrep == k)))
+    Ezzt_nom[, , k] <- matrix(t(Z[yrep==k,])%*%Z[yrep==k, ]/sum(yrep == k),
+                              dim(Z)[2], dim(Z)[2])
+  }
+  
+  # Returns: 1. Probability of each possible response 2. Expected value of
+  # latent vector for each possible response 3. Expected value of outer
+  # product of latent vector for each possible response
+  list(probs, Ez_nom, Ezzt_nom)
+}
+
+stable.probs <- function(s) {
+  s.max <- max(s)
+  indx <- which.max(s)
+  alpha <- s.max + log(1 + sum(exp(s[-indx] - s.max)))
+  alpha
+}
+
+temp.z <- z.moments_diag(D, G, N, CnsIndx, OrdIndx, zlimits, mu, Sigma, Y,
+                         J, K, norms, nom.ind.Z)
+
+probs.nom <- temp.z[[2]]
+
+# Run 2nd function
+res_10_high_loglik <- ObsLogLikelihood(N, CnsIndx, G, Y, mu, Sigma, pi.vec, patt.indx, 
+zlimits, J, OrdIndx, probs.nom, model, perc.cut, K)
+
+```
+
+# Make log-likelihood matrix
+```{r}
+# Write matrix and print
+loglik_matrix <- cbind(res_1_high_loglik, res_2_high_loglik, res_3_high_loglik, res_4_high_loglik, res_5_high_loglik,
+                       res_6_high_loglik, res_7_high_loglik, res_8_high_loglik, res_9_high_loglik, res_10_high_loglik)
+
+write.csv(as.data.frame(loglik_matrix), "loglik_matrix.csv", row.names = FALSE)
+
+```
+
+
+
+
