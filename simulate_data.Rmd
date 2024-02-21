@@ -1,0 +1,464 @@
+---
+title: "Cluster analysis - workflow: 5. Validation: Simulate data"
+author: "Karl Gisslander"
+date: "2024-02-21"
+output: html_document
+---
+### Import libraries
+```{r}
+start.time <- Sys.time()
+
+library(mvtnorm)
+library(tidyverse)
+```
+
+### Define data simulation function
+```{r}
+sim_fit <- function(res, CnsIndx = 3, OrdIndx = 16){ # CHANGED TO FAIRVASC SETTINGS
+  n <- nrow(res$Y)
+  m <- nrow(res$means)
+  mobs <- ncol(res$Y) # CHANGED THIS SO IT DOESN'T REQUIRE DATA EXTERNAL TO THE clustMD-OBJECT
+  
+  ksim <- rep(0, n)
+  ysim <- matrix(0, n, mobs)
+  zsim <- matrix(0, n, m)
+  pi_hat <- colMeans(res$tau)
+  
+  for(i in 1:n){
+    ksim[i] <- k <- sample(1:5, 1, prob = pi_hat) # CHANGED TO NEW K = G
+    zsim[i, ] <- mvtnorm::rmvnorm(1, res$means[, k], res$Sigma[, , k])
+  }
+  
+  ## Continuous first - easy
+  if(CnsIndx > 0) ysim[, 1:CnsIndx] <- zsim[, 1:CnsIndx]
+  
+  ## Ordinal second 
+  if(OrdIndx > CnsIndx){
+    for(j in (CnsIndx + 1):OrdIndx){
+      gamma_j <- qnorm(cumsum(table(res$Y[, j]))/n)
+      for(i in 1:n) ysim[i, j] <- which.max(zsim[i, j] < gamma_j)
+    }    
+  }
+  
+  ## Nominal last 
+  if(mobs > OrdIndx){
+    
+    if((mobs - OrdIndx) == 1){
+      sel <- apply(zsim[, (OrdIndx+1):m], 1, function(x) all(x < 0))
+      ysim[sel, mobs] <- 1
+      ysim[!sel, mobs] <- (apply(zsim[!sel, (OrdIndx+1):m], 1, which.max) + 1)
+    } else{
+      levels_ind_nom <- apply(Y[, (OrdIndx+1):mobs], 2, function(x) length(table(x)))
+      clevels_ind_nom <- cumsum(levels_ind_nom - 1)
+      nom_ind1 <- 1 + c(0, clevels_ind_nom[-(mobs - OrdIndx)]) + OrdIndx
+      nom_ind2 <- clevels_ind_nom + OrdIndx
+      
+      for(j in 1:(mobs - OrdIndx)){
+        zdum <- zsim[, nom_ind1[j]:nom_ind2[j]]
+        sel <- apply(zdum, 1, function(x) all(x < 0))
+        ysim[sel, j + OrdIndx] <- 1
+        ysim[!sel,  j + OrdIndx] <- (apply(zdum[!sel, ], 1, which.max) + 1)
+      }
+    }
+  }
+  
+  colnames(ysim) <- colnames(res$Y)
+  ret <- NULL
+  ret$ysim <- ysim
+  ret$zsim <- zsim
+  ret$ksim <- ksim
+  ret$CnsIndx <- CnsIndx
+  ret$OrdIndx <- OrdIndx
+  ret
+}
+
+```
+
+### Define log-likelihood function
+I've modified this to include the dependencies inside the function
+```{r}
+ObsLogLikelihood <- function(N, CnsIndx, G, Y, mu, Sigma, ind, 
+                             J, OrdIndx, model) {
+  
+  
+  K <- apply(Y, 2, max)
+if (CnsIndx > 0) 
+  K[1:CnsIndx] <- NA
+D <- J
+if (J > OrdIndx) 
+  D <- OrdIndx + sum(K[(OrdIndx + 1):J] - 1)
+
+# Which dimensions correspond to each item
+if (J > OrdIndx) {
+  nom.ind.Z <- vector("list", J - OrdIndx)
+  for (j in 1:(J - OrdIndx)) {
+    if (j == 1) {
+      start <- OrdIndx + 1
+    } else {
+      start <- OrdIndx + sum(K[(OrdIndx + 1):(OrdIndx + j - 1)] - 1) + 1
+    }
+    finish <- start + K[OrdIndx + j] - 2
+    nom.ind.Z[[j]] <- c(start:finish)
+  }  # j
+}  # if
+
+if ( (model == "BD")&(OrdIndx > CnsIndx) ){
+  if((OrdIndx-CnsIndx)==1){
+    patt.indx <- list()
+    for(p in 1:max(Y[, OrdIndx])) {patt.indx[[p]] <- which(Y[, OrdIndx]==p)}
+  }else{
+    patt.tab <- data.frame(table(data.frame((Y[, (CnsIndx + 1):OrdIndx]))))
+    patt.tab <- patt.tab[patt.tab$Freq != 0, 1:(OrdIndx - CnsIndx)]
+    patt.indx <- list()
+    for (p in 1:nrow(patt.tab)) {
+      patt.indx[[p]] <- which(apply(Y[, (CnsIndx + 1):OrdIndx], 1, patt.equal, patt.tab[p, ]))
+    } # p
+  }
+} # if
+
+Ynames <- colnames(Y)
+VarNames <- as.character(1:D)
+if (!is.null(Ynames)) {
+  VarNames[1:OrdIndx] <- Ynames[1:OrdIndx]
+  
+  if (J > OrdIndx) {
+    NomNames <- list()
+    for (j in (OrdIndx + 1):J) {
+      NomNames[[j - OrdIndx]] <- rep(NA, (K[j] - 1))
+      for(k in 1:(K[j] - 1)) {
+        NomNames[[j - OrdIndx]][k] <- paste(Ynames[j],"_", k, sep = "")
+      }
+    }
+    VarNames[(OrdIndx + 1):D] <- unlist(NomNames)
+  }
+} else {
+  for(j in 1:OrdIndx) {
+    VarNames[j] <- paste("V", j, sep = "")
+  }
+  
+  if (J > OrdIndx) {
+    NomNames <- list()
+    for (j in (OrdIndx + 1):J) {
+      NomNames[[j - OrdIndx]] <- rep(paste("V", j, sep=""), (K[j] - 1))
+      for(k in 1:(K[j] - 1)) {
+        NomNames[[j - OrdIndx]][k] <- paste("V", j, "_", k, sep = "")
+      }
+    }
+    VarNames[(OrdIndx + 1):D] <- unlist(NomNames)
+  }
+}
+
+# Shortened version
+VarNames_sht <- as.character(1:D)
+if (!is.null(Ynames)) {
+  VarNames_sht[1:OrdIndx] <- substr(Ynames[1:OrdIndx], 1, 7)
+  
+  if (J > OrdIndx) {
+    NomNames_sht <- list()
+    for (j in (OrdIndx + 1):J) {
+      NomNames_sht[[j - OrdIndx]] <- rep(NA, (K[j] - 1))
+      for(k in 1:(K[j] - 1)) {
+        NomNames_sht[[j - OrdIndx]][k] <- paste(substr(Ynames[j], 1, 7),"_", k, sep = "")
+      }
+    }
+    VarNames_sht[(OrdIndx + 1):D] <- unlist(NomNames_sht)
+  }
+} else {
+  VarNames_sht <- VarNames
+}
+
+# Mixing weights
+pi.vec <- table(ind)/N 
+
+perc.cutoffs <- function(CnsIndx, OrdIndx, Y, N) {
+  perc.cut <- list()
+  for (j in (CnsIndx + 1):OrdIndx) {
+    perc.cut[[j]] <- qnorm(c(0, cumsum(table(Y[, j])/N)))
+  }
+  perc.cut
+}
+
+# Cutoffs for ordinal items
+if (OrdIndx > CnsIndx) {
+  perc.cut <- perc.cutoffs(CnsIndx, OrdIndx, Y, N)
+  zlimits <- array(NA, c(N, J, 2))
+  zlimits[, 1:CnsIndx, 1] <- -Inf
+  zlimits[, 1:CnsIndx, 2] <- Inf
+  for (j in (CnsIndx + 1):OrdIndx) {
+    for (k in 1:K[j]) {
+      zlimits[Y[, j] == k, j, 1] <- perc.cut[[j]][k]
+      zlimits[Y[, j] == k, j, 2] <- perc.cut[[j]][k + 1]
+    }
+  }
+} else {
+  perc.cut <- list()
+  zlimits <- array(NA, c(N, J, 2))
+}
+
+# Define norms
+Nnorms <- 100000
+if (J > OrdIndx) 
+  norms <- MASS::mvrnorm(Nnorms, mu = rep(0, max(K[(OrdIndx + 1):J]) - 1),
+                         Sigma = diag(max(K[(OrdIndx + 1):J]) - 1))
+
+
+z.moments_diag <- function(D, G, N, CnsIndx, OrdIndx, zlimits, mu, Sigma, 
+                           Y, J, K, norms, nom.ind.Z) {
+  D <- J
+  if (J > OrdIndx) 
+    D <- OrdIndx + sum(K[(OrdIndx + 1):J] - 1)
+  
+  Ez.new <- array(NA, c(N, D, G))
+  # S.new <- matrix(0, N, G)
+  S2.new <- array(NA, c(D, D, G, N))
+  probs.new <- NA  #dummy required for output
+  if (J > OrdIndx) 
+    probs.new <- array(NA, c(J - OrdIndx, max(K[(OrdIndx + 1):J]), G))
+  
+  for (g in 1:G) {
+    # continuous
+    if (CnsIndx > 0) 
+      Ez.new[, 1:CnsIndx, ] <- Y[, 1:CnsIndx]
+    
+    # ordinal
+    if (OrdIndx > CnsIndx) {
+      for (i in 1:N) {
+        temp.e <- truncnorm::etruncnorm(a = zlimits[i, (CnsIndx + 1):OrdIndx, 1],
+                                        b = zlimits[i, (CnsIndx + 1):OrdIndx, 2],
+                                        mean = mu[(CnsIndx + 1):OrdIndx, g],
+                                        sd = sqrt(diag(Sigma[, , g])[(CnsIndx + 1):OrdIndx]))
+        
+        Ez.new[i, (CnsIndx + 1):OrdIndx, g] <- temp.e
+        
+        temp.v <- truncnorm::vtruncnorm(a = zlimits[i, (CnsIndx + 1):OrdIndx, 1],
+                                        b = zlimits[i, (CnsIndx + 1):OrdIndx, 2],
+                                        mean = mu[(CnsIndx + 1):OrdIndx, g],
+                                        sd = sqrt(diag(Sigma[, , g])[(CnsIndx + 1):OrdIndx]))
+        
+        S2.new[(CnsIndx + 1):OrdIndx, (CnsIndx + 1):OrdIndx, g, i] <- diag(temp.v + temp.e^2,
+                                                                           nrow=OrdIndx-CnsIndx) 
+      }  # i
+    }  # if
+    
+    # Nominal
+    if (J > OrdIndx) {
+      for (j in (OrdIndx + 1):J) {
+        Zrep <- norms[, 1:(K[j] - 1)] %*% 
+          chol(Sigma[nom.ind.Z[[j - OrdIndx]], nom.ind.Z[[j - OrdIndx]], g]) +
+          matrix(mu[nom.ind.Z[[j - OrdIndx]], g], dim(norms)[1], K[j] - 1, byrow = TRUE)
+        
+        temp.z <- z.nom.diag(Zrep)
+        
+        probs.new[j - OrdIndx, 1:K[j], g] <- temp.z[[1]]
+        
+        for (k in 1:K[j]) {
+          Ez.new[Y[, j] == k, nom.ind.Z[[j - OrdIndx]], g] <-
+            matrix(temp.z[[2]][, k], sum(Y[, j] == k), K[j] - 1, byrow = TRUE)
+          
+          S2.new[nom.ind.Z[[j - OrdIndx]], nom.ind.Z[[j - OrdIndx]], g, Y[, j] == k] <-
+            matrix(diag(diag(temp.z[[3]][, , k])), K[j] - 1, K[j] - 1, byrow = TRUE)
+        }  # k
+      }  # j
+    }  # if
+  }  # g
+  list(Ez.new, probs.new, S2.new)
+}
+
+z.nom.diag <- function(Z) {
+  # Z is a matrix of simulated vectors (each row) y is the jth column of
+  # observed nominal responses
+  yrep <- rep(0, dim(Z)[1])
+  yrep[apply(Z, 1, max) < 0] <- 1
+  yrep[yrep != 1] <- apply(Z[yrep != 1, ], 1, which.max) + 1
+  
+  probs <- as.vector(table(yrep)/dim(Z)[1])
+  
+  if (length(probs) < (dim(Z)[2] + 1)) {
+    cat("ERROR:No Monte Carlo observations generating one or more levels
+        of a nominal variable.", "\n", "Increasing Nnorms may solve this
+        problem.")
+  }
+  
+  Ez_nom <- matrix(NA, dim(Z)[2], dim(Z)[2] + 1)
+  Ezzt_nom <- array(NA, c(dim(Z)[2], dim(Z)[2], dim(Z)[2] + 1))
+  for (k in 1:(dim(Z)[2] + 1)) {
+    Ez_nom[, k] <- colMeans(matrix(Z[yrep == k, ], nrow = sum(yrep == k)))
+    Ezzt_nom[, , k] <- matrix(t(Z[yrep==k,])%*%Z[yrep==k, ]/sum(yrep == k),
+                              dim(Z)[2], dim(Z)[2])
+  }
+  
+  # Returns: 1. Probability of each possible response 2. Expected value of
+  # latent vector for each possible response 3. Expected value of outer
+  # product of latent vector for each possible response
+  list(probs, Ez_nom, Ezzt_nom)
+}
+
+stable.probs <- function(s) {
+  s.max <- max(s)
+  indx <- which.max(s)
+  alpha <- s.max + log(1 + sum(exp(s[-indx] - s.max)))
+  alpha
+}
+
+temp.z <- z.moments_diag(D, G, N, CnsIndx, OrdIndx, zlimits, mu, Sigma, Y,
+                         J, K, norms, nom.ind.Z)
+
+probs.nom <- temp.z[[2]]
+  
+  
+  
+  # Continuous
+  logLikeCns <- rep(0, N)
+  if (CnsIndx > 0) {
+    densCns <- matrix(NA, N, G)
+    for (g in 1:G) {
+      densCns[, g] <- 
+        mvtnorm::dmvnorm(matrix(Y[, 1:CnsIndx], nrow = N),
+                         mean = mu[1:CnsIndx, g],
+                         sigma = matrix(Sigma[1:CnsIndx, 1:CnsIndx, g], CnsIndx, CnsIndx),
+                         log = TRUE)
+    }
+    densCns <- sweep(densCns, 2, log(pi.vec), "+")
+    logLikeCns <- apply(densCns, 1, stable.probs)
+  }
+  
+  # Categorical
+  logLikeCat <- rep(0, N)
+  if (J > CnsIndx) {
+    # Ordinal
+    densOrd <- matrix(1, N, G)
+    if (OrdIndx > CnsIndx) {
+      
+      if(model=="BD") {
+        for (g in 1:G) {
+          for (p in 1:length(patt.indx)) {
+            densOrd[patt.indx[[p]], g] <- 
+              mvtnorm::pmvnorm(lower = zlimits[patt.indx[[p]][1], (CnsIndx + 1):OrdIndx, 1],
+                               upper = zlimits[patt.indx[[p]][1], (CnsIndx + 1):OrdIndx, 2],
+                               mean = mu[(CnsIndx + 1):OrdIndx, g],
+                               sigma = Sigma[(CnsIndx + 1):OrdIndx, (CnsIndx + 1):OrdIndx, g])
+          }  # p
+        }  # g
+      } else {
+        OrdProbs <- array(NA, c(OrdIndx-CnsIndx, max(K[(CnsIndx+1):OrdIndx]),G))
+        for(j in (CnsIndx+1):OrdIndx){
+          for(g in 1:G){
+            CumulProbs <- pnorm(perc.cut[[j]], mean=mu[j, g], sd=sqrt(Sigma[j, j, g]))
+            for(k in 1:K[j])
+              OrdProbs[j-CnsIndx, k, g] <- CumulProbs[k+1] - CumulProbs[k]
+            
+            densOrd[, g] <- densOrd[, g]*OrdProbs[j-CnsIndx, Y[, j], g]
+          } # g
+        } # j
+      } # ifelse
+      
+    } # if
+    
+    # Nominal
+    densNom <- matrix(1, N, G)
+    if (J > OrdIndx) {
+      for (g in 1:G) {
+        for (j in (OrdIndx + 1):J) 
+          densNom[, g] <- densNom[, g] * probs.nom[j - OrdIndx, Y[, j], g]
+      }  # g
+    }
+    
+    logDensCat <- log(densOrd) + log(densNom)
+    logDensCat <- sweep(logDensCat, 2, log(pi.vec), "+")
+    logLikeCat <- apply(logDensCat, 1, stable.probs)
+  }
+  
+  logLike <- (logLikeCns + logLikeCat)
+  logLike
+}
+
+```
+
+
+### Load results of main analysis
+```{r}
+load("res_1_high.rda")
+load("res_2_high.rda")
+load("res_3_high.rda")
+load("res_4_high.rda")
+load("res_5_high.rda")
+load("res_6_high.rda")
+load("res_7_high.rda")
+load("res_8_high.rda")
+load("res_9_high.rda")
+load("res_10_high.rda")
+```
+
+### Simulate data from the main analysis (we simulate only 5 datasets now)
+```{r}
+# WARNING! This code is computationally heavy
+# Initialize a list to store the simulated datasets
+sim_list <- list()
+
+# Loop over different res objects
+for (res_index in  1:10) {
+  # Create the res object name dynamically (e.g., res_1_high, res_2_high, ..., res_10_high)
+  current_res <- get(paste0("res_", res_index, "_high"))
+  
+  # Initialize a list to store simulated datasets for the current res object
+  sim_list_res <- list()
+  
+  # Loop for simulation
+  for (sim_index in 1:100) {
+    # Generate simulated dataset
+    sim_result <- sim_fit(res = current_res, CnsIndx = 3, OrdIndx = 16)
+    
+    # Store the ysim matrix in the list
+    sim_list_res[[sim_index]] <- sim_result$ysim
+  }
+  
+  # Store the list of simulated datasets for the current res object in the main list
+  sim_list[[paste0("res_", res_index, "_high")]] <- sim_list_res
+}
+
+# Save this list
+save(sim_list, file = "sim_data_list.rda")
+```
+
+### Get the log-likelihoods of the simulated datesets
+```{r}
+# Initialize a list to store the results
+result_list <- list()
+
+# Loop over different res objects
+for (res_index in 1:10) {
+  # Loop over simulated datasets for the current res object
+  for (sim_index in 1:100) {
+    # Extract the simulated dataset from sim_list
+    current_sim <- sim_list[[res_index]][[sim_index]]
+    
+    # Run the ObsLogLikelihood function for each sim_list element
+    result_i <- ObsLogLikelihood(N = nrow(current_sim), 
+                                 CnsIndx = 3, 
+                                 G = 5, 
+                                 Y = current_sim, 
+                                 mu = current_res$means, 
+                                 Sigma = current_res$Sigma,
+                                 ind = current_res$cl, 
+                                 J = ncol(current_sim), 
+                                 OrdIndx = 16, 
+                                 model = "VVI")
+    
+    # Store the result in the result_list
+    result_list[[paste0("res_", res_index, "_sim_", sim_index)]] <- result_i
+  }
+}
+
+# result_list now contains the results for each combination of res object and simulated dataset
+save(result_list, file = "sim_loglik_list.rda")
+
+end.time <- Sys.time()
+time.taken <- round(end.time - start.time,2)
+time.taken
+
+```
+
+
+
+
+

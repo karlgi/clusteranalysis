@@ -1,0 +1,121 @@
+---
+title: "Cluster analysis - workflow: 5. Validation: ECDF plots"
+author: "Karl Gisslander"
+date: "2024-02-21"
+output: html_document
+---
+
+```{r}
+library(RColorBrewer)
+```
+
+### Load data
+```{r}
+load("sim_loglik_list.rda") # Log-likelihoods from simulated datasets
+load("leave_one_out_loglik_list.rda") # Log-likelihoods from leave-one-registry out analysis
+```
+
+
+### Dataset plot
+```{r}
+# Define colors
+dataset_col <-  brewer.pal(n = 10, name = "Set3")
+
+# Plot the first ECDF with the first color in the vector
+plot(ecdf(result_list[[1]]), col = dataset_col[1], main = "ECDFs of ObsLogLikelihood", xlab = "ObsLogLikelihood", ylab = "Cumulative Probability", xlim = c(-25, 0))
+
+# Loop through and add lines for the remaining ECDFs with different colors
+for (i in 2:1000) {
+  lines(ecdf(result_list[[i]]), col = dataset_col[((i - 1) %/% 100) + 1],, do.points=FALSE)
+}
+
+legend("topleft", legend = 1:10, col = dataset_col[1:10], lty = 1, title = "Dataset")
+
+```
+
+
+### Leave-one-registry out plot
+```{r}
+registry_col <- c(brewer.pal(n = 6, name = "Dark2"),brewer.pal(n = 6, name = "Dark2"),brewer.pal(n = 6, name = "Dark2")
+                  ,brewer.pal(n = 6, name = "Dark2"),brewer.pal(n = 6, name = "Dark2"),brewer.pal(n = 6, name = "Dark2"),
+                  brewer.pal(n = 6, name = "Dark2"),brewer.pal(n = 6, name = "Dark2"),brewer.pal(n = 6, name = "Dark2"),
+                  brewer.pal(n = 6, name = "Dark2"))
+
+
+# Plot the first ECDF with the first color in the vector
+plot(ecdf(result_list2[[1]]), col = registry_col[1], main = "ECDFs of ObsLogLikelihood", xlab = "ObsLogLikelihood", ylab = "Cumulative Probability", xlim = c(-25, 0))
+
+# Loop through and add lines for the remaining ECDFs with different colors
+for (i in 2:60) {
+  lines(ecdf(result_list2[[i]]), col = registry_col[i], do.points=FALSE)
+}
+
+legend("topleft", legend = c("Czech","FVSG","GeVas","Polvas","RKD", "Skåne"), col = registry_col[1:6], lty = 1, title = "Excluded registry")
+
+```
+
+
+### Combined plot
+```{r}
+
+# Plot the first ECDF with the first color in the vector
+plot(ecdf(result_list[[1]]), col = 1, main = "ECDFs of ObsLogLikelihood", xlab = "ObsLogLikelihood", ylab = "Cumulative Probability", xlim = c(-25, 0))
+
+# Loop through and add lines for the remaining ECDFs with different colors
+for (i in 2:1000) {
+  lines(ecdf(result_list[[i]]), col = 1, do.points=FALSE)
+}
+
+# Loop through and add lines for the remaining ECDFs with different colors
+for (i in 1:60) {
+  lines(ecdf(result_list2[[i]]), col = 2, do.points=FALSE)
+}
+
+legend("topleft", legend = c("Simulations","Leave-one-registry-out"), col = c(1,2), lty = 1, title = "")
+
+```
+### Leave-one-registry out plot
+```{r}
+# WARNING: This generates a very large PDF 
+# Specify the file path and name for the PDF
+pdf_file <- "ECDF_lancet_figure.pdf" 
+
+# Start the PDF device
+pdf(pdf_file)
+
+registry_col <- c("#E69F00", "#56B4E9", "#009E73", "#CC79A7", "#0072B2", "#D55E00",
+  "#E69F00", "#56B4E9", "#009E73", "#CC79A7", "#0072B2", "#D55E00",
+  "#E69F00", "#56B4E9", "#009E73", "#CC79A7", "#0072B2", "#D55E00",
+  "#E69F00", "#56B4E9", "#009E73", "#CC79A7", "#0072B2", "#D55E00",
+  "#E69F00", "#56B4E9", "#009E73", "#CC79A7", "#0072B2", "#D55E00",
+  "#E69F00", "#56B4E9", "#009E73", "#CC79A7", "#0072B2", "#D55E00",
+  "#E69F00", "#56B4E9", "#009E73", "#CC79A7", "#0072B2", "#D55E00",
+  "#E69F00", "#56B4E9", "#009E73", "#CC79A7", "#0072B2", "#D55E00",
+  "#E69F00", "#56B4E9", "#009E73", "#CC79A7", "#0072B2", "#D55E00",
+  "#E69F00", "#56B4E9", "#009E73", "#CC79A7", "#0072B2", "#D55E00")
+
+
+# Plot the first ECDF with the first color in the vector
+plot(ecdf(result_list2[[1]]), col = registry_col[1], main = "", xlab = "Log-likelihood", ylab = "Cumulative Probability", xlim = c(-25, 0))
+
+# Loop through and add lines for the remaining ECDFs with different colors
+for (i in 1:1000) {
+  lines(ecdf(result_list[[i]]), col = "#999999", do.points=FALSE)
+}
+
+# Loop through and add lines for the remaining ECDFs with different colors
+for (i in 2:60) {
+  lines(ecdf(result_list2[[i]]), col = registry_col[i], do.points=FALSE)
+}
+
+legend("topleft", legend = c("None","Czech","FVSG","GeVas","Polvas","RKD", "Skåne"), col = c("#999999",registry_col[1:6]), lty = 1, title = "Excluded registry")
+
+dev.off()
+
+```
+
+
+
+
+
+
