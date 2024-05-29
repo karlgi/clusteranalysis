@@ -149,9 +149,15 @@ highavg_bic <- avg_bic %>%
 
 avg_bic_ci <- cbind(bic_long1[,1:2], bic_long1[,3],bic_long2[,3],bic_long3[,3],bic_long4[,3],bic_long5[,3],bic_long6[,3],bic_long7[,3],bic_long8[,3],bic_long9[,3],bic_long10[,3])
 
-ci_low <- apply(avg_bic_ci[3:12], 1, FUN = min)
-ci_high <- apply(avg_bic_ci[3:12], 1, FUN = max)
+# Check mean and sd to see if they are highly skewed. 
+mean_bic <- apply(avg_bic_ci[3:12], 1, FUN = mean)
+sd_bic <- apply(avg_bic_ci[3:12], 1, FUN = sd)
+median_bic <- apply(avg_bic_ci[3:12], 1, FUN = median)
 
+# It is not skewed
+# Make new variable of mean+/- SD
+ci_low <- mean_bic-sd_bic
+ci_high <- mean_bic+sd_bic
 
 avg_bic_ci <- cbind(avg_bic, ci_low, ci_high)
 avg_bic_ci
